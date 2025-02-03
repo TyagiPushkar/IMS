@@ -1,53 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import AddItemDialog from "../components/AddItemDialog"; // Import Add Item Dialog
 import AddInventoryDialog from "../components/AddInventoryDialog"; // Import Add Inventory Dialog
 import SearchIcon from "@mui/icons-material/Search"; // Search icon
-import { IconButton, TextField, Box, Button } from "@mui/material";
+import { IconButton, TextField, Box } from "@mui/material";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-export const data = {
-  labels: ["Apple", "Knorr", "Shoop", "Green", "Purple", "Orange"],
-  datasets: [
-    {
-      label: "# of Votes",
-      data: [0, 1, 5, 8, 9, 15],
-      backgroundColor: [
-        "rgba(255, 99, 132, 0.2)",
-        "rgba(54, 162, 235, 0.2)",
-        "rgba(255, 206, 86, 0.2)",
-        "rgba(75, 192, 192, 0.2)",
-        "rgba(153, 102, 255, 0.2)",
-        "rgba(255, 159, 64, 0.2)",
-      ],
-      borderColor: [
-        "rgba(255, 99, 132, 1)",
-        "rgba(54, 162, 235, 1)",
-        "rgba(255, 206, 86, 1)",
-        "rgba(75, 192, 192, 1)",
-        "rgba(153, 102, 255, 1)",
-        "rgba(255, 159, 64, 1)",
-      ],
-      borderWidth: 1,
-    },
-  ],
-};
 
 function Inventory() {
   const [openAddItemDialog, setOpenAddItemDialog] = useState(false);
   const [openAddInventoryDialog, setOpenAddInventoryDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [inventoryData, setInventoryData] = useState([]); // State for inventory data
+  const [loading, setLoading] = useState(true); // State for loading indicator
+  const [error, setError] = useState(""); // State for any error message
 
-  // Sample inventory data
-  const inventoryData = [
-    { item: "Apple", quantity: 10, updatedAt: "2024-01-30" },
-    { item: "Knorr", quantity: 5, updatedAt: "2024-01-29" },
-    { item: "Shoop", quantity: 8, updatedAt: "2024-01-28" },
-    { item: "Green", quantity: 12, updatedAt: "2024-01-27" },
-    { item: "Purple", quantity: 15, updatedAt: "2024-01-26" },
-    // Add more items here...
-  ];
+  useEffect(() => {
+    // Get OfficeId from localStorage (userObject)
+    const userObject = JSON.parse(localStorage.getItem("user"));
+    const officeId = userObject?.OfficeId;
+
+    if (officeId) {
+      // Fetch inventory data based on OfficeId
+      const fetchInventoryData = async () => {
+        try {
+          const response = await fetch(
+            `https://namami-infotech.com/SatyaMicro/src/stock/get_stock.php?OfficeId=${officeId}`
+          );
+          const result = await response.json();
+
+          if (result.success) {
+            setInventoryData(result.data); // Update inventory data state
+          } else {
+            setError(result.message); // Set error message if any
+          }
+        } catch (err) {
+          setError("Failed to fetch inventory data.");
+        } finally {
+          setLoading(false); // Stop loading when the request is done
+        }
+      };
+
+      fetchInventoryData();
+    } else {
+      setError("OfficeId not found in localStorage.");
+      setLoading(false);
+    }
+  }, []); // Empty dependency array to run only once on component mount
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -56,42 +55,18 @@ function Inventory() {
   return (
     <div className="col-span-12 lg:col-span-10 flex justify-center" style={{ marginTop: "10px" }}>
       <div className="flex flex-col gap-5 w-11/12">
-        {/* Overall Inventory Stats Section */}
-        <div className="bg-white rounded p-3">
-          <span className="font-semibold px-4">Overall Inventory</span>
-          <div className="flex flex-col md:flex-row justify-center items-center">
-            <div className="flex flex-col p-10 w-full md:w-3/12">
-              <span className="font-semibold text-blue-600 text-base">Total Products</span>
-              <span className="font-semibold text-gray-600 text-base">0</span>
-              <span className="font-thin text-gray-400 text-xs">Last 7 days</span>
-            </div>
-            <div className="flex flex-col gap-3 p-10 w-full md:w-3/12 sm:border-y-2 md:border-x-2 md:border-y-0">
-              <span className="font-semibold text-yellow-600 text-base">Stores</span>
-              <span className="font-semibold text-gray-600 text-base">0</span>
-              <span className="font-thin text-gray-400 text-xs">Last 7 days</span>
-            </div>
-            <div className="flex flex-col gap-3 p-10 w-full md:w-3/12 sm:border-y-2 md:border-x-2 md:border-y-0">
-              <span className="font-semibold text-purple-600 text-base">Top Selling</span>
-              <span className="font-semibold text-gray-600 text-base">0</span>
-              <span className="font-thin text-gray-400 text-xs">Last 7 days</span>
-            </div>
-            <div className="flex flex-col gap-3 p-10 w-full md:w-3/12 border-y-2 md:border-x-2 md:border-y-0">
-              <span className="font-semibold text-red-600 text-base">Low Stocks</span>
-              <span className="font-semibold text-gray-600 text-base">0</span>
-              <span className="font-thin text-gray-400 text-xs">Ordered</span>
-            </div>
-          </div>
+      
+         <div className="bg-white rounded p-3">
+          <span className="font-semibold px-4">Stock In Office</span>
+          
         </div>
-
         {/* Inventory Table with Buttons */}
         <div className="bg-white rounded p-3">
-          {/* <span className="font-semibold px-4">Overall Inventory</span> */}
           <div className="flex justify-between items-center mb-4">
             {/* Search Input */}
             <Box display="flex" alignItems="center">
               <TextField
                 label="Search"
-                // variant="outlined"
                 size="small"
                 value={searchTerm}
                 onChange={handleSearchChange}
@@ -106,9 +81,6 @@ function Inventory() {
             <div>
               <button
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 text-xs  rounded"
-                variant="contained"
-                color="primary"
-                sx={{ marginRight: "10px" }}
                 onClick={() => setOpenAddItemDialog(true)}
               >
                 Add Item
@@ -116,8 +88,6 @@ function Inventory() {
               &nbsp;
               <button
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 text-xs  rounded"
-                variant="contained"
-                color="secondary"
                 onClick={() => setOpenAddInventoryDialog(true)}
               >
                 Add Inventory
@@ -136,17 +106,27 @@ function Inventory() {
                 </tr>
               </thead>
               <tbody>
-                {inventoryData
-                  .filter((item) =>
-                    item.item.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((row, index) => (
-                    <tr key={index} className="text-center border-t">
-                      <td className="border p-2">{row.item}</td>
-                      <td className="border p-2">{row.quantity}</td>
-                      <td className="border p-2">{row.updatedAt}</td>
-                    </tr>
-                  ))}
+                {loading ? (
+                  <tr>
+                    <td colSpan="3" className="text-center p-4">Loading...</td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan="3" className="text-center p-4 text-red-600">{error}</td>
+                  </tr>
+                ) : (
+                  inventoryData
+                    .filter((item) =>
+                      item?.Item?.toLowerCase().includes(searchTerm.toLowerCase()) // Check if item.Item exists
+                    )
+                    .map((row, index) => (
+                      <tr key={index} className="text-center border-t">
+                        <td className="border p-2">{row.Item}</td>
+                        <td className="border p-2">{row.Quantity}</td>
+                        <td className="border p-2">{row.UpdateDateTime}</td>
+                      </tr>
+                    ))
+                )}
               </tbody>
             </table>
           </div>

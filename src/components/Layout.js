@@ -11,17 +11,18 @@ import {
   ListItemText,
   Box,
   Avatar,
-  Button,
   Menu,
   MenuItem,
   IconButton,
 } from "@mui/material";
-import { Home, DirectionsCar, Settings, Menu as MenuIcon } from "@mui/icons-material";
+import { Home, Menu as MenuIcon } from "@mui/icons-material";
 import BusinessIcon from '@mui/icons-material/Business';
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import PeopleIcon from '@mui/icons-material/People';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import MoveDownIcon from '@mui/icons-material/MoveDown';
 const drawerWidth = 200;
 
 const Layout = ({ children }) => {
@@ -46,9 +47,11 @@ const Layout = ({ children }) => {
   <List>
     {[
       { to: "/dashboard", icon: <Home />, text: "Dashboard" },
-      { to: "/inventory", icon: <PeopleIcon />, text: "Inventory" },
-      { to: "/purchase-details", icon: <BusinessIcon />, text: "Purchases" },
-      { to: "/sales", icon: <LocalShippingIcon />, text: "Sales" },
+        { to: "/inventory", icon: <InventoryIcon />, text: "Inventory" },
+        { to: "/employees", icon: <PeopleIcon />, text: "Employees" },
+       { to: "/offices", icon: <BusinessIcon />, text: "Offices" },
+      { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases" },
+      { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer" },
     ].map(({ to, icon, text }) => (
       <NavLink
         key={to}
@@ -115,10 +118,10 @@ const Layout = ({ children }) => {
           {/* Profile and Logout */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Typography variant="body1" sx={{ mr: 2, display: { xs: "none", sm: "block" } }}>
-              {user.username}
+              {user.AdminName}
             </Typography>
             <IconButton onClick={handleProfileMenuOpen}>
-              <Avatar alt={user.username} src={user.image || "/default-avatar.png"} />
+              <Avatar alt={user.username} src={user.image || user.AdminName } />
             </IconButton>
             <Menu
               anchorEl={anchorEl}
