@@ -120,9 +120,11 @@ function Employees() {
 
       {/* Add Employee Dialog */}
       <AddEmployeeDialog
-        open={openAddEmployeeDialog}
-        onClose={() => setOpenAddEmployeeDialog(false)}
-      />
+  open={openAddEmployeeDialog}
+  onClose={() => setOpenAddEmployeeDialog(false)}
+  refreshEmployees={fetchEmployeeData} // Pass the function
+/>
+
     </div>
   );
 }

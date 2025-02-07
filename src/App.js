@@ -5,11 +5,13 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import NoPageFound from "./pages/NoPageFound";
-import Store from "./pages/Store";
 import Layout from "./components/Layout";
 import "./index.css";
 import Offices from "./pages/Offices";
 import Employees from "./pages/Employees";
+import Issue from "./pages/Issue";
+import Purchase from "./pages/Purchase";
+import Transfer from "./pages/Transfer";
 
 // Function to check if user is authenticated
 const isAuthenticated = () => {
@@ -46,7 +48,9 @@ const ProtectedRoutes = () => {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/offices" element={<Offices/>} />
-        <Route path="/manage-store" element={<Store />} />
+        <Route path="/issue" element={<Issue />} />
+        <Route path="/purchase" element={<Purchase />} />
+         <Route path="/transfer" element={<Transfer />} />
         <Route path="*" element={<NoPageFound />} />
       </Routes>
     </Layout>

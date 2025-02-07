@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogActions, DialogContent, DialogTitle, Button, TextField, Autocomplete } from "@mui/material";
 
-const AddEmployeeDialog = ({ open, onClose }) => {
+const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
   const [form, setForm] = useState({
     EmpId: "",
     Name: "",
@@ -76,7 +76,8 @@ const AddEmployeeDialog = ({ open, onClose }) => {
           Mail: "",
           OfficeCode: "", // Reset OfficeCode
         }); // Clear form after success
-        onClose();
+          onClose();
+          refreshEmployees();
       } else {
         setError(result.message || "Failed to add employee.");
       }

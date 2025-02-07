@@ -2,17 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import SearchIcon from "@mui/icons-material/Search"; // Search icon
 import { IconButton, TextField, Box } from "@mui/material";
-import AddOfficeDialog from "../components/AddOfficeDialog";
+import TransferItemDialog from "../components/TransferitemDialog";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-function Offices() {
+function Transfer() {
   const [openAddItemDialog, setOpenAddItemDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [officeData, setOfficeData] = useState([]); // State for office data
-  const [loading, setLoading] = useState(true); // State for loading indicator
-  const [error, setError] = useState(""); // State for any error message
-const fetchOfficeData = async () => {
+  const [officeData, setOfficeData] = useState([]);
+  const [loading, setLoading] = useState(true); 
+  const [error, setError] = useState(""); 
+  const fetchOfficeData = async () => {
       try {
         const response = await fetch(
           "https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php"
@@ -29,13 +29,10 @@ const fetchOfficeData = async () => {
       } finally {
         setLoading(false); // Stop loading when the request is done
       }
-    };
+  };
   useEffect(() => {
-    // Fetch office data
-    
-
     fetchOfficeData();
-  }, []); // Empty dependency array to run only once on component mount
+  }, []); 
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -45,10 +42,9 @@ const fetchOfficeData = async () => {
     <div className="col-span-12 lg:col-span-10 flex justify-center" style={{ marginTop: "10px" }}>
           <div className="flex flex-col gap-5 w-11/12">
                <div className="bg-white rounded p-3">
-          <span className="font-semibold px-4">Offices List</span>
+          <span className="font-semibold px-4">Transfer List</span>
           
         </div>
-        {/* Office Table with Buttons */}
         <div className="bg-white rounded p-3">
           <div className="flex justify-between items-center mb-4">
             {/* Search Input */}
@@ -65,19 +61,17 @@ const fetchOfficeData = async () => {
               </IconButton>
             </Box>
 
-            {/* Buttons: Add Item & Add Inventory */}
             <div>
               <button
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 text-xs  rounded"
                 onClick={() => setOpenAddItemDialog(true)}
               >
-                Add Offices
+               Transfer Item
               </button>
              
             </div>
           </div>
 
-          {/* Table displaying office data */}
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-300 mt-4">
               <thead>
@@ -122,7 +116,7 @@ const fetchOfficeData = async () => {
       {/* Add Item Dialog */}
       
       
-<AddOfficeDialog open={openAddItemDialog}
+<TransferItemDialog open={openAddItemDialog}
               onClose={() => setOpenAddItemDialog(false)}
               refreshOffice={fetchOfficeData}
           />
@@ -131,4 +125,4 @@ const fetchOfficeData = async () => {
   );
 }
 
-export default Offices;
+export default Transfer;

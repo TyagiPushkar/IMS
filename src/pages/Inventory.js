@@ -4,6 +4,7 @@ import AddItemDialog from "../components/AddItemDialog"; // Import Add Item Dial
 import AddInventoryDialog from "../components/AddInventoryDialog"; // Import Add Inventory Dialog
 import SearchIcon from "@mui/icons-material/Search"; // Search icon
 import { IconButton, TextField, Box } from "@mui/material";
+import UploadImage from "../components/UploadImage";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -46,7 +47,7 @@ function Inventory() {
       setError("OfficeId not found in localStorage.");
       setLoading(false);
     }
-  }, []); // Empty dependency array to run only once on component mount
+  }, []);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -86,12 +87,12 @@ function Inventory() {
                 Add Item
               </button>
               &nbsp;
-              <button
+              {/* <button
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 text-xs  rounded"
                 onClick={() => setOpenAddInventoryDialog(true)}
               >
                 Add Inventory
-              </button>
+              </button> */}
             </div>
           </div>
 

@@ -23,6 +23,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MoveDownIcon from '@mui/icons-material/MoveDown';
+import CallMissedOutgoingIcon from '@mui/icons-material/CallMissedOutgoing';
 const drawerWidth = 200;
 
 const Layout = ({ children }) => {
@@ -51,7 +52,8 @@ const Layout = ({ children }) => {
         { to: "/employees", icon: <PeopleIcon />, text: "Employees" },
        { to: "/offices", icon: <BusinessIcon />, text: "Offices" },
       { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases" },
-      { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer" },
+        { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer" },
+      { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item" },
     ].map(({ to, icon, text }) => (
       <NavLink
         key={to}
@@ -182,7 +184,7 @@ const Layout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 1,
+          p: 0,
           mt: 0, // Added margin-top for the main content to avoid overlapping with the AppBar
           overflowX: "hidden",
           background:"#F3F4F6"

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dialog, DialogActions, DialogContent, DialogTitle, Button, TextField, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
 
-const AddOfficeDialog = ({ open, onClose }) => {
+const AddOfficeDialog = ({ open, onClose,refreshOffice }) => {
   const [form, setForm] = useState({
     OfficeCode: "",
     OfficeName: "",
@@ -69,7 +69,8 @@ const AddOfficeDialog = ({ open, onClose }) => {
           Password: "",
           Role: "",
         }); // Clear form after success
-        onClose();
+          onClose();
+          refreshOffice()
       } else {
         setError(result.message || "Failed to add office.");
       }
