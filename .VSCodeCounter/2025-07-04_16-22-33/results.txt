@@ -1,0 +1,80 @@
+Date : 2025-07-04 16:22:33
+Directory : c:\Users\lapmall\Desktop\IMS
+Total : 45 files,  24318 codes, 254 comments, 394 blanks, all 24966 lines
+
+Languages
++------------+------------+------------+------------+------------+------------+
+| language   | files      | code       | comment    | blank      | total      |
++------------+------------+------------+------------+------------+------------+
+| JSON       |          3 |     20,128 |          0 |          3 |     20,131 |
+| JavaScript |         37 |      4,119 |        231 |        379 |      4,729 |
+| PostCSS    |          2 |         49 |          0 |         10 |         59 |
+| HTML       |          1 |         20 |         23 |          1 |         44 |
+| XML        |          1 |          1 |          0 |          0 |          1 |
+| Markdown   |          1 |          1 |          0 |          1 |          2 |
++------------+------------+------------+------------+------------+------------+
+
+Directories
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                              | files      | code       | comment    | blank      | total      |
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                 |         45 |     24,318 |        254 |        394 |     24,966 |
+| . (Files)                                                         |          4 |     20,115 |          2 |          4 |     20,121 |
+| public                                                            |          2 |         45 |         23 |          2 |         70 |
+| src                                                               |         39 |      4,158 |        229 |        388 |      4,775 |
+| src (Files)                                                       |         10 |        147 |         12 |         33 |        192 |
+| src\components                                                    |         16 |      2,477 |        187 |        191 |      2,855 |
+| src\pages                                                         |         13 |      1,534 |         30 |        164 |      1,728 |
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| filename                                                          | language   | code       | comment    | blank      | total      |
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| c:\Users\lapmall\Desktop\IMS\README.md                            | Markdown   |          1 |          0 |          1 |          2 |
+| c:\Users\lapmall\Desktop\IMS\package-lock.json                    | JSON       |     20,050 |          0 |          1 |     20,051 |
+| c:\Users\lapmall\Desktop\IMS\package.json                         | JSON       |         53 |          0 |          1 |         54 |
+| c:\Users\lapmall\Desktop\IMS\public\index.html                    | HTML       |         20 |         23 |          1 |         44 |
+| c:\Users\lapmall\Desktop\IMS\public\manifest.json                 | JSON       |         25 |          0 |          1 |         26 |
+| c:\Users\lapmall\Desktop\IMS\src\App.css                          | PostCSS    |         33 |          0 |          6 |         39 |
+| c:\Users\lapmall\Desktop\IMS\src\App.js                           | JavaScript |         51 |          2 |          8 |         61 |
+| c:\Users\lapmall\Desktop\IMS\src\App.test.js                      | JavaScript |          7 |          0 |          2 |          9 |
+| c:\Users\lapmall\Desktop\IMS\src\AuthContext.js                   | JavaScript |          3 |          0 |          3 |          6 |
+| c:\Users\lapmall\Desktop\IMS\src\ProtectedWrapper.js              | JavaScript |         11 |          3 |          4 |         18 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddEmployeeDialog.js  | JavaScript |        127 |          5 |         16 |        148 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddInventoryDialog.js | JavaScript |        111 |          5 |         15 |        131 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddItemDialog.js      | JavaScript |         58 |          0 |          8 |         66 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddOfficeDialog.js    | JavaScript |        166 |          3 |         13 |        182 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddProduct.js         | JavaScript |        185 |         57 |          7 |        249 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddPurchaseDetails.js | JavaScript |        204 |         26 |          7 |        237 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddSale.js            | JavaScript |        230 |         26 |          8 |        264 |
+| c:\Users\lapmall\Desktop\IMS\src\components\AddStore.js           | JavaScript |        215 |         31 |         10 |        256 |
+| c:\Users\lapmall\Desktop\IMS\src\components\Header.js             | JavaScript |        182 |          2 |          7 |        191 |
+| c:\Users\lapmall\Desktop\IMS\src\components\ItemIssueDialog.js    | JavaScript |        161 |          0 |         20 |        181 |
+| c:\Users\lapmall\Desktop\IMS\src\components\Layout.js             | JavaScript |        185 |          0 |         16 |        201 |
+| c:\Users\lapmall\Desktop\IMS\src\components\PurchaseItemDialog.js | JavaScript |        129 |          0 |         19 |        148 |
+| c:\Users\lapmall\Desktop\IMS\src\components\SideMenu.js           | JavaScript |         84 |          0 |         10 |         94 |
+| c:\Users\lapmall\Desktop\IMS\src\components\TransferitemDialog.js | JavaScript |        218 |         11 |         24 |        253 |
+| c:\Users\lapmall\Desktop\IMS\src\components\UpdateProduct.js      | JavaScript |        181 |         21 |          6 |        208 |
+| c:\Users\lapmall\Desktop\IMS\src\components\UploadImage.js        | JavaScript |         41 |          0 |          5 |         46 |
+| c:\Users\lapmall\Desktop\IMS\src\index.css                        | PostCSS    |         16 |          0 |          4 |         20 |
+| c:\Users\lapmall\Desktop\IMS\src\index.js                         | JavaScript |         12 |          3 |          3 |         18 |
+| c:\Users\lapmall\Desktop\IMS\src\logo.svg                         | XML        |          1 |          0 |          0 |          1 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Dashboard.js               | JavaScript |        121 |          0 |         10 |        131 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Employees.js               | JavaScript |        117 |          3 |         13 |        133 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Inventory.js               | JavaScript |        131 |          6 |         16 |        153 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Issue.js                   | JavaScript |        119 |          2 |         10 |        131 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Login.js                   | JavaScript |        110 |          0 |         11 |        121 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\NoPageFound.js             | JavaScript |         32 |          0 |          5 |         37 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Offices.js                 | JavaScript |        117 |          1 |         17 |        135 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Purchase.js                | JavaScript |        195 |          2 |         20 |        217 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\PurchaseDetails.js         | JavaScript |        109 |          4 |         12 |        125 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Register.js                | JavaScript |        182 |          6 |         15 |        203 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Sales.js                   | JavaScript |        122 |          5 |         12 |        139 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Store.js                   | JavaScript |         65 |          1 |          8 |         74 |
+| c:\Users\lapmall\Desktop\IMS\src\pages\Transfer.js                | JavaScript |        114 |          0 |         15 |        129 |
+| c:\Users\lapmall\Desktop\IMS\src\reportWebVitals.js               | JavaScript |         12 |          0 |          2 |         14 |
+| c:\Users\lapmall\Desktop\IMS\src\setupTests.js                    | JavaScript |          1 |          4 |          1 |          6 |
+| c:\Users\lapmall\Desktop\IMS\tailwind.config.js                   | JavaScript |         11 |          2 |          1 |         14 |
+| Total                                                             |            |     24,318 |        254 |        394 |     24,966 |
++-------------------------------------------------------------------+------------+------------+------------+------------+------------+
