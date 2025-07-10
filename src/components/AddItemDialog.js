@@ -137,20 +137,8 @@ const AddItemDialog = ({ open, onClose, refreshData }) => {
             {error}
           </Alert>
         )}
-
-        <TextField
-          fullWidth
-          label="Item Name"
-          name="itemName"
-          value={formData.itemName}
-          onChange={handleChange}
-          margin="normal"
-          variant="outlined"
-          required
-          disabled={loading}
-        />
-
-        <FormControl fullWidth margin="normal" variant="outlined">
+         
+         <FormControl fullWidth margin="normal" variant="outlined">
           <InputLabel>Category</InputLabel>
           <Select
             name="category"
@@ -169,6 +157,19 @@ const AddItemDialog = ({ open, onClose, refreshData }) => {
             ))}
           </Select>
         </FormControl>
+        <TextField
+          fullWidth
+          label="Item Name"
+          name="itemName"
+          value={formData.itemName}
+          onChange={handleChange}
+          margin="normal"
+          variant="outlined"
+          required
+          disabled={loading}
+        />
+
+        
       </DialogContent>
 
       <Divider />

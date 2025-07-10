@@ -78,7 +78,7 @@ const Layout = ({ children }) => {
   const menuItems = [
     { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
     { to: "/inventory", icon: <InventoryIcon />, text: "Inventory", badge: null },
-    { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
+    role === "HO" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
     role === "HO" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
     { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
     { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
@@ -293,37 +293,8 @@ const Layout = ({ children }) => {
 
           {/* Right side actions */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* Notifications */}
-            <Tooltip title="Notifications">
-              <IconButton
-                color="inherit"
-                onClick={handleNotificationOpen}
-                sx={{
-                  "&:hover": {
-                    backgroundColor: alpha(theme.palette.common.white, 0.1),
-                  },
-                }}
-              >
-                <Badge badgeContent={4} color="error">
-                  <Notifications />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-
-            {/* Settings */}
-            <Tooltip title="Settings">
-              <IconButton
-                color="inherit"
-                sx={{
-                  "&:hover": {
-                    backgroundColor: alpha(theme.palette.common.white, 0.1),
-                  },
-                }}
-              >
-                <Settings />
-              </IconButton>
-            </Tooltip>
-
+         
+            
             {/* User Profile */}
             <Box sx={{ display: "flex", alignItems: "center", ml: 1 }}>
               <Typography
@@ -432,15 +403,7 @@ const Layout = ({ children }) => {
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        <MenuItem onClick={handleMenuClose}>
-          <Person fontSize="small" sx={{ mr: 2 }} />
-          Profile
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <Settings fontSize="small" sx={{ mr: 2 }} />
-          Settings
-        </MenuItem>
-        <Divider />
+        
         <MenuItem onClick={handleLogout} sx={{ color: theme.palette.error.main }}>
           <Logout fontSize="small" sx={{ mr: 2 }} />
           Logout

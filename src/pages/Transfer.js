@@ -38,8 +38,8 @@ import {
   FilterList,
   Refresh,
 } from "@mui/icons-material"
-import TransferItemDialog from "../components/TransferitemDialog"
-
+import TransferItemDialog from "../components/TransferItemDialog"
+import CheckIcon from '@mui/icons-material/Check';
 const Transfer = () => {
   const theme = useTheme()
   const [openAddItemDialog, setOpenAddItemDialog] = useState(false)
@@ -50,25 +50,40 @@ const Transfer = () => {
   const [error, setError] = useState("")
   const [refreshing, setRefreshing] = useState(false)
 
-  // Fetch transfer data
   const fetchTransferData = async () => {
     try {
-      setRefreshing(true)
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/transfer/get_stock_transfer.php")
-      const result = await response.json()
+      setRefreshing(true);
+      const userObject = JSON.parse(localStorage.getItem("user"));
+      const role = userObject?.Role;
+      const OfficeId = userObject?.OfficeId;
+  
+      // Debug: Log the query params
+      console.log("Role:", role);
+      console.log("OfficeId:", OfficeId);
+  
+      const response = await fetch(
+        `https://namami-infotech.com/SatyaMicro/src/transfer/get_stock_transfer.php?OfficeId=${OfficeId}`
+      );
+      
+      // Debug: Log the raw response
+      console.log("Raw response:", response);
+      
+      const result = await response.json();
+      console.log("API response:", result); // Debug: Log the parsed response
+  
       if (result.success) {
-        setTransferData(result.data)
+        setTransferData(result.data);
       } else {
-        setError(result.message)
+        setError(result.message || "Failed to fetch transfer data");
       }
     } catch (err) {
-      setError("Failed to fetch transfer data.")
-      console.error("Transfer fetch error:", err)
+      console.error("Transfer fetch error:", err);
+      setError("Failed to fetch transfer data. Check console for details.");
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
-  }
-
+  };
+  
   // Fetch office data for mapping office IDs to names
   const fetchOfficeData = async () => {
     try {
@@ -122,8 +137,19 @@ const Transfer = () => {
     }
   }
 
-  // Filter transfers based on search term
-  const filteredTransfers = transferData.filter((transfer) => {
+  const userObject = JSON.parse(localStorage.getItem("user"))
+const role = userObject?.Role
+const OfficeId = userObject?.OfficeId
+
+const filteredTransfers = transferData
+  .filter((transfer) => {
+    if (role !== "HO") {
+      return transfer.FromOfficeID == OfficeId || transfer.ToOfficeID == OfficeId
+    }
+    return true // HO sees all
+  })
+  .filter((transfer) => {
+    // Then apply search
     const fromOfficeName = getOfficeName(transfer.FromOfficeID).toLowerCase()
     const toOfficeName = getOfficeName(transfer.ToOfficeID).toLowerCase()
     const batchId = transfer.BatchId?.toLowerCase() || ""
@@ -137,6 +163,30 @@ const Transfer = () => {
       status.includes(searchLower)
     )
   })
+
+  const handleAcceptTransfer = async (batchId) => {
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/transfer/accept_stock_transfer.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ BatchId: batchId }),
+      });
+  
+      const result = await response.json();
+      if (result.success) {
+        alert("Stock marked as Delivered!");
+        fetchTransferData(); // refresh the data
+      } else {
+        alert(result.message || "Failed to mark as delivered.");
+      }
+    } catch (error) {
+      console.error("Accept transfer error:", error);
+      alert("Something went wrong while accepting transfer.");
+    }
+  };
+  
 
   const handleRefresh = () => {
     fetchTransferData()
@@ -174,104 +224,7 @@ const Transfer = () => {
       </Card>
 
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ backgroundColor: theme.palette.success.main }}>
-                  <LocalShipping />
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", color: theme.palette.success.main }}>
-                    {transferData.length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Transfers
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ backgroundColor: theme.palette.warning.main }}>
-                  <CalendarToday />
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", color: theme.palette.warning.main }}>
-                    {transferData.filter((t) => t.Status === "In transit").length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    In Transit
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ backgroundColor: theme.palette.info.main }}>
-                  <Business />
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", color: theme.palette.info.main }}>
-                    {officeData.length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Active Offices
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)} 0%, ${alpha(theme.palette.error.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ backgroundColor: theme.palette.error.main }}>
-                  <Person />
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", color: theme.palette.error.main }}>
-                    {new Set(transferData.map((t) => t.BatchId)).size}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Unique Batches
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      
 
       {/* Main Content */}
       <Card>
@@ -434,12 +387,20 @@ const Transfer = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Tooltip title="View Details">
-                          <IconButton size="small" color="primary">
-                            <Visibility />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
+  <Tooltip title="Mark as Delivered">
+    <span>
+      <IconButton
+        size="small"
+        color="success"
+        onClick={() => handleAcceptTransfer(transfer.BatchId)}
+        disabled={transfer.Status?.toLowerCase() === "delivered"}
+      >
+        <CheckIcon />
+      </IconButton>
+    </span>
+  </Tooltip>
+</TableCell>
+
                     </TableRow>
                   ))
                 )}

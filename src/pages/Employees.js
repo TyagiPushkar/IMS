@@ -285,7 +285,6 @@ function Employees() {
                     <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Office Code</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -323,14 +322,7 @@ function Employees() {
                       <TableCell>
                         <Typography variant="body2">{employee.Date}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuClick(e, employee)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      </TableCell>
+                      
                     </TableRow>
                   ))}
                   {paginatedEmployees.length === 0 && !loading && (

@@ -51,7 +51,6 @@ const ProtectedRoutes = () => {
         <Route path="/issue" element={<Issue />} />
         <Route path="/purchase" element={<Purchase />} />
         <Route path="/transfer" element={<Transfer />} />
-        <Route path="/99bb8d849d96c00d233c02c0486f5897.txt" element={<div>detectify</div>} />
         <Route path="*" element={<NoPageFound />} />
       </Routes>
     </Layout>

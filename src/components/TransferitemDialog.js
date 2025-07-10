@@ -8,6 +8,7 @@ import {
   TextField,
   Autocomplete,
   IconButton,
+  MenuItem,
 } from "@mui/material";
 import { AddCircle, RemoveCircle } from "@mui/icons-material";
 
@@ -15,7 +16,7 @@ const TransferItemDialog = ({ open, onClose, refreshTransfer }) => {
   const [form, setForm] = useState({
     FromOfficeID: "", // This will be set from localStorage user object
     ToOfficeID: "",   // Selected from offices autocomplete
-    EmpId:"",
+    EmpId: "",
     ModeOfTransfer: "",
     CourierName: "",
     DocketNumber: "",
@@ -33,6 +34,9 @@ const TransferItemDialog = ({ open, onClose, refreshTransfer }) => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (user && user.OfficeId) {
       setForm(prev => ({ ...prev, FromOfficeID: user.OfficeId }));
+    }
+    if (user && user.EmpId) {
+      setForm(prev => ({ ...prev, EmpId: user.EmpId }));
     }
     fetchOffices();
     fetchItems();
@@ -82,61 +86,84 @@ const TransferItemDialog = ({ open, onClose, refreshTransfer }) => {
     setForm({ ...form, items: updatedItems });
   };
 
+  // Handle mode of transfer change
+  const handleModeChange = (e) => {
+    const mode = e.target.value;
+    setForm({
+      ...form,
+      ModeOfTransfer: mode,
+      // Clear courier fields when switching to "By Hand"
+      ...(mode === "By Hand" && {
+        CourierName: "",
+        DocketNumber: "",
+        CourierDate: new Date().toISOString().split("T")[0],
+      }),
+    });
+  };
+
   const handleSave = async () => {
-  if (
-    !form.FromOfficeID ||
-    !form.ToOfficeID ||
-    !form.ModeOfTransfer ||
-     // If CourierName is optional, remove this check
-     // If DocketNumber is optional, remove this check
-    form.items.length === 0 ||
-    form.items.some(item => !item.Item || !item.Quantity)
-  ) {
-    setError("All fields are required");
-    return;
-  }
-
-  setLoading(true);
-  setError("");
-
-  try {
-    // Constructing the JSON in the required format
-    const payload = {
-      FromOfficeID: form.FromOfficeID,
-      ToOfficeID: form.ToOfficeID,
-      ModeOfTransfer: form.ModeOfTransfer,
-      EmpId: form.EmpId, // Fetch EmpId from localStorage
-      Item: form.items.map(item => item.Item), // Extracting only Item names
-      Quantity: form.items.map(item => Number(item.Quantity)), // Extracting only Quantity as numbers
-    };
-
-    const response = await fetch(
-      "https://namami-infotech.com/SatyaMicro/src/transfer/stock_transfer.php",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json", // Ensuring JSON format
-        },
-        body: JSON.stringify(payload), // Convert payload to JSON string
-      }
-    );
-
-    const result = await response.json();
-    if (result.success) {
-      alert("Transfer recorded successfully!");
-      onClose();
-      refreshTransfer();
-    } else {
-      setError(result.message || "Failed to record transfer");
+    if (
+      !form.FromOfficeID ||
+      !form.ToOfficeID ||
+      !form.ModeOfTransfer ||
+      form.items.length === 0 ||
+      form.items.some(item => !item.Item || !item.Quantity)
+    ) {
+      setError("All fields are required");
+      return;
     }
-  } catch (err) {
-    setError("An error occurred while processing the transfer");
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
 
+    // Additional validation for courier fields if mode is "By Courier"
+    if (form.ModeOfTransfer === "By Courier" && (!form.CourierName || !form.DocketNumber)) {
+      setError("Courier fields are required when mode is By Courier");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // Constructing the JSON in the required format
+      const payload = {
+        FromOfficeID: form.FromOfficeID,
+        ToOfficeID: form.ToOfficeID,
+        ModeOfTransfer: form.ModeOfTransfer,
+        EmpId: form.EmpId,
+        Item: form.items.map(item => item.Item),
+        Quantity: form.items.map(item => Number(item.Quantity)),
+        ...(form.ModeOfTransfer === "By Courier" && {
+          CourierName: form.CourierName,
+          DocketNumber: form.DocketNumber,
+          CourierDate: form.CourierDate,
+        }),
+      };
+
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/transfer/stock_transfer.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        alert("Transfer recorded successfully!");
+        onClose();
+        refreshTransfer();
+      } else {
+        setError(result.message || "Failed to record transfer");
+      }
+    } catch (err) {
+      setError("An error occurred while processing the transfer");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -156,67 +183,74 @@ const TransferItemDialog = ({ open, onClose, refreshTransfer }) => {
           options={officesList}
           getOptionLabel={(option) => option.OfficeName}
           onChange={(e, newValue) => {
-            // Save the selected Office ID into form state
             setForm({ ...form, ToOfficeID: newValue ? newValue.ID : "" });
           }}
           renderInput={(params) => <TextField {...params} label="To Office" margin="normal" fullWidth />}
         />
 
-        {/* Mode Of Transfer */}
+        {/* Mode Of Transfer - now a select field */}
         <TextField
+          select
           label="Mode Of Transfer"
           value={form.ModeOfTransfer}
-          onChange={(e) => setForm({ ...form, ModeOfTransfer: e.target.value })}
+          onChange={handleModeChange}
           fullWidth
           margin="normal"
-        />
+        >
+          <MenuItem value="By Courier">By Courier</MenuItem>
+          <MenuItem value="By Hand">By Hand</MenuItem>
+        </TextField>
 
-        {/* Courier Name */}
-        <TextField
-          label="Courier Name"
-          value={form.CourierName}
-          onChange={(e) => setForm({ ...form, CourierName: e.target.value })}
-          fullWidth
-          margin="normal"
-        />
+        {/* Show courier fields only when mode is "By Courier" */}
+        {form.ModeOfTransfer === "By Courier" && (
+          <>
+            <TextField
+              label="Courier Name"
+              value={form.CourierName}
+              onChange={(e) => setForm({ ...form, CourierName: e.target.value })}
+              fullWidth
+              margin="normal"
+            />
 
-        {/* Docket Number */}
-        <TextField
-          label="Docket Number"
-          value={form.DocketNumber}
-          onChange={(e) => setForm({ ...form, DocketNumber: e.target.value })}
-          fullWidth
-          margin="normal"
-        />
+            <TextField
+              label="Docket Number"
+              value={form.DocketNumber}
+              onChange={(e) => setForm({ ...form, DocketNumber: e.target.value })}
+              fullWidth
+              margin="normal"
+            />
 
-        {/* Courier Date */}
-        <TextField
-          label="Courier Date"
-          type="date"
-          value={form.CourierDate}
-          onChange={(e) => setForm({ ...form, CourierDate: e.target.value })}
-          fullWidth
-          margin="normal"
-          InputLabelProps={{ shrink: true }}
-        />
+            <TextField
+              label="Courier Date"
+              type="date"
+              value={form.CourierDate}
+              onChange={(e) => setForm({ ...form, CourierDate: e.target.value })}
+              fullWidth
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+          </>
+        )}
 
         {/* Dynamic Items List */}
         {form.items.map((item, index) => (
           <div key={index} style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
-            <Autocomplete
-              options={itemsList}
-              getOptionLabel={(option) => option.Name}
-              onChange={(e, newValue) =>
-                handleItemChange(index, "Item", newValue ? newValue.ID : "")
-              }
-              renderInput={(params) => <TextField {...params} label="Item" fullWidth />}
-              fullWidth
-              value={
-                // Find the item object by matching the ID stored in form.items[index].Item
-                itemsList.find(itemObj => itemObj.ID === item.Item) || null
-              }
-              freeSolo={false}
-            />
+           <Autocomplete
+  options={itemsList}
+  getOptionLabel={(option) => option.Name}
+  onChange={(e, newValue) =>
+    handleItemChange(index, "Item", newValue ? newValue.Name : "")
+  }
+  renderInput={(params) => (
+    <TextField {...params} label="Item" fullWidth />
+  )}
+  fullWidth
+  value={
+    itemsList.find(itemObj => itemObj.Name === item.Item) || null
+  }
+  freeSolo={false}
+/>
+
             <TextField
               label="Quantity"
               type="number"
