@@ -33,7 +33,7 @@ import {
   Paid as PaidIcon,
 } from "@mui/icons-material";
 
-const PurchaseItemDialog = ({ open, onClose, refreshPurchase }) => {
+const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
   const [form, setForm] = useState({
     VendorName: "",
     VendorAddress: "",
@@ -165,7 +165,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchase }) => {
         setSuccess("Purchase recorded successfully!");
         setTimeout(() => {
           onClose();
-          refreshPurchase();
+          refreshPurchases();
         }, 1500);
       } else {
         setError(result.message || "Failed to record purchase");

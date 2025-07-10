@@ -94,13 +94,13 @@ function Login() {
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <div className="text-sm">
               <span className="font-medium text-indigo-600 hover:text-indigo-500">
                 Forgot your password?
               </span>
             </div>
-          </div>
+          </div> */}
 
           <div>
             <button

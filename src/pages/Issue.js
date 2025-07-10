@@ -1,129 +1,323 @@
-import React, { useState, useEffect } from "react";
-import { IconButton, TextField, Box } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Box,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Chip,
+  IconButton,
+  InputAdornment,
+  Grid,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TablePagination,
+  CircularProgress,
+  Alert,
+  Fade,
+  Tooltip,
+  Avatar,
+  Stack,
+} from "@mui/material";
+import {
+  Search as SearchIcon,
+  Add as AddIcon,
+  Download as DownloadIcon,
+  Refresh as RefreshIcon,
+  Person as PersonIcon,
+  Inventory as InventoryIcon,
+} from "@mui/icons-material";
 import IssueItemDialog from "../components/ItemIssueDialog";
 
 function Issue() {
-     const [openAddEmployeeDialog, setOpenAddEmployeeDialog] = useState(false);
+  // State management
+  const [openIssueDialog, setOpenIssueDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [issueData, setIssueData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Fetch issue data
   useEffect(() => {
-    // Get OfficeId from localStorage (userObject)
+    const fetchIssueData = async () => {
+      setLoading(true);
+      try {
+        const userObject = JSON.parse(localStorage.getItem("user"));
+        const officeId = userObject?.OfficeId;
+
+        if (!officeId) {
+          throw new Error("OfficeId not found in localStorage.");
+        }
+
+        const response = await fetch(
+          `https://namami-infotech.com/SatyaMicro/src/issue/get_issue.php?OfficeID=${officeId}`
+        );
+        const result = await response.json();
+
+        if (result.success) {
+          setIssueData(result.data);
+          setError("");
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        setError("Failed to fetch issue data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIssueData();
+  }, []);
+
+  // Filter logic
+  const filteredIssues = useMemo(() => {
+    return issueData.filter((issue) =>
+      issue?.Item?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      issue?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      issue?.EmpID?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [issueData, searchTerm]);
+
+  // Pagination logic
+  const paginatedIssues = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return filteredIssues.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredIssues, page, rowsPerPage]);
+
+  // Event handlers
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setPage(0);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const refreshData = () => {
+    setLoading(true);
     const userObject = JSON.parse(localStorage.getItem("user"));
     const officeId = userObject?.OfficeId;
 
-    if (officeId) {
-      // Fetch issue data based on OfficeId
-      const fetchIssueData = async () => {
-        try {
-          const response = await fetch(
-            `https://namami-infotech.com/SatyaMicro/src/issue/get_issue.php?OfficeID=${officeId}`
-          );
-          const result = await response.json();
-
-          if (result.success) {
-            setIssueData(result.data);
-          } else {
-            setError(result.message);
-          }
-        } catch (err) {
-          setError("Failed to fetch issue data.");
-        } finally {
-          setLoading(false);
+    fetch(`https://namami-infotech.com/SatyaMicro/src/issue/get_issue.php?OfficeID=${officeId}`)
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          setIssueData(result.data);
+          setError("");
+        } else {
+          setError(result.message);
         }
-      };
+      })
+      .catch(err => {
+        setError("Failed to refresh issue data.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
-      fetchIssueData();
-    } else {
-      setError("OfficeId not found in localStorage.");
-      setLoading(false);
-    }
-  }, []);
-
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
+  const exportData = () => {
+    const csvContent = [
+      ['Office Code', 'Employee', 'Item', 'Quantity', 'Date & Time'],
+      ...filteredIssues.map(issue => [
+        issue.OfficeCode,
+        `${issue.Name} (${issue.EmpID})`,
+        issue.Item,
+        issue.Quantity,
+        issue.DateTime
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'issued_items.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="col-span-12 lg:col-span-10 flex justify-center" style={{ marginTop: "10px" }}>
-      <div className="flex flex-col gap-5 w-11/12">
-        <div className="bg-white rounded p-3">
-          <span className="font-semibold px-4">Issued Items List</span>
-        </div>
-        <div className="bg-white rounded p-3">
-          <div className="flex justify-between items-center mb-4">
-            <Box display="flex" alignItems="center">
+    <Box sx={{ p: 0, maxWidth: '100%' }}>
+      {/* Header */}
+      <Paper elevation={1} sx={{ p: 3, mb: 2 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
+          Issued Items Management
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Track and manage all issued inventory items
+        </Typography>
+      </Paper>
+
+      {/* Main Content */}
+      <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+        {/* Toolbar */}
+        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6}>
               <TextField
-                label="Search"
-                size="small"
+                fullWidth
+                variant="outlined"
+                placeholder="Search issued items..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                sx={{ marginRight: "10px" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+                size="small"
               />
-              <IconButton color="primary">
-                <SearchIcon />
-              </IconButton>
-                      </Box>
-                      <div>
-              <button
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 text-xs rounded"
-                onClick={() => setOpenAddEmployeeDialog(true)}
-              >
-                Issue Item
-              </button>
-            </div>
-          </div>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Tooltip title="Refresh">
+                  <IconButton onClick={refreshData} color="primary">
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Export">
+                  <IconButton onClick={exportData} color="primary">
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setOpenIssueDialog(true)}
+                  sx={{ ml: 1 }}
+                >
+                  Issue Item
+                </Button>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-300 mt-4">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border p-2">Office Code</th>
-                  <th className="border p-2">Employee</th>
-                  {/* <th className="border p-2">Name</th> */}
-                  <th className="border p-2">Item</th>
-                  <th className="border p-2">Quantity</th>
-                  <th className="border p-2">Date & Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="6" className="text-center p-4">Loading...</td>
-                  </tr>
-                ) : error ? (
-                  <tr>
-                    <td colSpan="6" className="text-center p-4 text-red-600">{error}</td>
-                  </tr>
-                ) : (
-                  issueData
-                    .filter((row) =>
-                      row?.Item?.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((row, index) => (
-                      <tr key={index} className="text-center border-t">
-                        <td className="border p-2">{row.OfficeCode}</td>
-                            <td className="border p-2">{row.Name} - ({ row.EmpID})</td>
-                        {/* <td className="border p-2">{row.Name}</td> */}
-                        <td className="border p-2">{row.Item}</td>
-                        <td className="border p-2">{row.Quantity}</td>
-                        <td className="border p-2">{row.DateTime}</td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-          </div>
-          <IssueItemDialog
-        open={openAddEmployeeDialog}
-        onClose={() => setOpenAddEmployeeDialog(false)}
+        {/* Table */}
+        <TableContainer>
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Box p={3}>
+              <Alert severity="error">{error}</Alert>
+            </Box>
+          ) : (
+            <Fade in={!loading}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Office</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Employee</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Item</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Qty</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Date & Time</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedIssues.map((issue, index) => (
+                    <TableRow
+                      key={`${issue.EmpID}-${issue.Item}-${index}`}
+                      hover
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                    >
+                      <TableCell>
+                        <Chip
+                          label={issue.OfficeCode}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: 'primary.main' }}>
+                            <PersonIcon fontSize="small" />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2">{issue.Name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {issue.EmpID}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: 'secondary.main' }}>
+                            <InventoryIcon fontSize="small" />
+                          </Avatar>
+                          <Typography variant="body2">{issue.Item}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip
+                          label={issue.Quantity}
+                          color="primary"
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {new Date(issue.DateTime).toLocaleString()}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {paginatedIssues.length === 0 && !loading && (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          No issued items found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Fade>
+          )}
+        </TableContainer>
+
+        {/* Pagination */}
+        {!loading && !error && (
+          <TablePagination
+            component="div"
+            count={filteredIssues.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        )}
+      </Paper>
+
+      {/* Issue Item Dialog */}
+      <IssueItemDialog
+        open={openIssueDialog}
+        onClose={() => setOpenIssueDialog(false)}
+        refreshData={refreshData}
       />
-    </div>
+    </Box>
   );
 }
 
