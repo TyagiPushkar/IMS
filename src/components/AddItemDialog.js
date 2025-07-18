@@ -40,9 +40,10 @@ const AddItemDialog = ({ open, onClose, refreshData }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const validValue = value.replace(/[^a-zA-Z0-9. ]/g, '');
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: validValue
     }));
   };
 
