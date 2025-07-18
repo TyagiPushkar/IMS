@@ -16,7 +16,6 @@ import {
   Menu,
   MenuItem,
   IconButton,
-  Divider,
   Badge,
   Tooltip,
   useTheme,
@@ -26,10 +25,8 @@ import {
 import {
   Home,
   Menu as MenuIcon,
-  Notifications,
-  Settings,
+ 
   Logout,
-  Person,
   ChevronLeft,
   ChevronRight,
 } from "@mui/icons-material"
@@ -48,7 +45,7 @@ const collapsedDrawerWidth = 70
 const Layout = ({ children }) => {
   const userObject = JSON.parse(localStorage.getItem("user"));
   const role = userObject?.Role;
-  const OfficeId = userObject?.OfficeId;
+  // const OfficeId = userObject?.OfficeId;
   const theme = useTheme()
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem("user")) || {
@@ -64,7 +61,7 @@ const Layout = ({ children }) => {
 
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
-  const handleNotificationOpen = (event) => setNotificationAnchor(event.currentTarget)
+  // const handleNotificationOpen = (event) => setNotificationAnchor(event.currentTarget)
   const handleNotificationClose = () => setNotificationAnchor(null)
 
   const handleLogout = () => {
