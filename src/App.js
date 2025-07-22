@@ -104,14 +104,14 @@ const App = () => {
               </RequireAuth>
             } 
           />
-          <Route 
+          {/* <Route 
             path="/transfer" 
             element={
               <RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.HO]}>
                 <Transfer />
               </RequireAuth>
             } 
-          />
+          /> */}
           <Route path="*" element={<NoPageFound />} />
         </Route>
       </Routes>
