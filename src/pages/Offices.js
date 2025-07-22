@@ -6,7 +6,6 @@ import {
   Button,
   Typography,
   Chip,
-  IconButton,
   InputAdornment,
   Grid,
   TableContainer,
@@ -18,18 +17,14 @@ import {
   CircularProgress,
   Alert,
   Fade,
-  Tooltip,
   Avatar,
   Stack,
-  Divider,
   TablePagination,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Business as BusinessIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
 } from "@mui/icons-material";

@@ -20,18 +20,14 @@ import {
   Alert,
   Fade,
   Tooltip,
-  Menu,
-  MenuItem,
   Avatar,
   Stack,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   Add as AddIcon,
-  FilterList as FilterIcon,
   Download as DownloadIcon,
   Refresh as RefreshIcon,
-  MoreVert as MoreVertIcon,
   Inventory as InventoryIcon,
 } from "@mui/icons-material";
 import AddItemDialog from "../components/AddItemDialog";
@@ -52,8 +48,7 @@ function Inventory() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Menu state
-  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
+ 
 
   // Fetch inventory data and items data
   useEffect(() => {
@@ -136,15 +131,7 @@ function Inventory() {
     setPage(0);
   };
 
-  const handleMenuClick = (event, item) => {
-    setMenuAnchorEl(event.currentTarget);
-    setSelectedItem(item);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setSelectedItem(null);
-  };
+ 
 
   const refreshData = async () => {
     setLoading(true);

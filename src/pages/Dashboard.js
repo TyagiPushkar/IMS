@@ -20,10 +20,7 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  ShoppingCart,
   Store,
-  Inventory,
-  AttachMoney,
   CheckBoxOutlineBlank,
   CheckBox,
 } from "@mui/icons-material"

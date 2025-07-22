@@ -19,13 +19,10 @@ import {
   Alert,
   Fade,
   Tooltip,
-  Avatar,
   Stack,
-  Divider,
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogActions,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -33,7 +30,6 @@ import {
   Image as ImageIcon,
   Category as CategoryIcon,
   Receipt as ReceiptIcon,
-  Business as BusinessIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
 import PurchaseItemDialog from "../components/PurchaseItemDialog";

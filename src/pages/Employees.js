@@ -9,8 +9,6 @@ import {
   IconButton,
   InputAdornment,
   Grid,
-  Card,
-  CardContent,
   TableContainer,
   Table,
   TableHead,
@@ -36,8 +34,6 @@ import {
   FilterList as FilterIcon,
   Download as DownloadIcon,
   Refresh as RefreshIcon,
-  MoreVert as MoreVertIcon,
-  Person as PersonIcon,
 } from "@mui/icons-material";
 import AddEmployeeDialog from "../components/AddEmployeeDialog";
 
@@ -60,7 +56,6 @@ function Employees() {
   
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   // Fetch employee data
   const fetchEmployeeData = async () => {
@@ -136,14 +131,10 @@ function Employees() {
     setFilterAnchorEl(null);
   };
 
-  const handleMenuClick = (event, employee) => {
-    setMenuAnchorEl(event.currentTarget);
-    setSelectedEmployee(employee);
-  };
 
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
-    setSelectedEmployee(null);
+   
   };
 
   const clearFilters = () => {
