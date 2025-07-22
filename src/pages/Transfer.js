@@ -20,7 +20,6 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
-  Grid,
   Tooltip,
   useTheme,
   alpha,
@@ -30,11 +29,7 @@ import {
 import {
   Search,
   Add,
-  Visibility,
   LocalShipping,
-  Business,
-  Person,
-  CalendarToday,
   FilterList,
   Refresh,
 } from "@mui/icons-material"
@@ -144,7 +139,7 @@ const OfficeId = userObject?.OfficeId
 const filteredTransfers = transferData
   .filter((transfer) => {
     if (role !== "HO") {
-      return transfer.FromOfficeID == OfficeId || transfer.ToOfficeID == OfficeId
+      return transfer.FromOfficeID === OfficeId || transfer.ToOfficeID === OfficeId
     }
     return true // HO sees all
   })
