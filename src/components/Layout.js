@@ -31,7 +31,7 @@ import {
   ChevronRight,
 } from "@mui/icons-material"
 import BusinessIcon from "@mui/icons-material/Business"
-import { NavLink, useNavigate } from "react-router-dom"
+import { NavLink, Outlet, useNavigate } from "react-router-dom"
 import logo from "../assets/logo.png"
 import PeopleIcon from "@mui/icons-material/People"
 import InventoryIcon from "@mui/icons-material/Inventory"
@@ -469,7 +469,7 @@ const Layout = ({ children }) => {
         }}
       >
         <Toolbar />
-        {children}
+        <Outlet /> {/* This replaces {children} */}
       </Box>
     </Box>
   )

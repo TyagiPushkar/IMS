@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Login() {
@@ -10,6 +10,19 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Load reCAPTCHA script
+  useEffect(() => {
+    const loadRecaptcha = () => {
+      const script = document.createElement("script");
+      script.src = `https://www.google.com/recaptcha/api.js?render=6LcHNIsrAAAAAPFS338WaDmn6sEh3gzWNaxv0kA1`;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    };
+
+    loadRecaptcha();
+  }, []);
+
   const handleInputChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -20,18 +33,24 @@ function Login() {
     setError("");
 
     try {
+      // Get reCAPTCHA token
+      const recaptchaToken = await window.grecaptcha.execute('6LcHNIsrAAAAAPFS338WaDmn6sEh3gzWNaxv0kA1', {action: 'login'});
+
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/login.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          recaptchaToken
+        }),
       });
 
       const result = await response.json();
       if (result.success) {
-        localStorage.setItem("user", JSON.stringify(result.data)); // Store user data
-        navigate("/dashboard"); // Redirect on success
+        localStorage.setItem("user", JSON.stringify(result.data));
+        navigate("/dashboard");
       } else {
         setError(result.message || "Invalid login credentials");
       }
@@ -93,14 +112,6 @@ function Login() {
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
-
-          {/* <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <span className="font-medium text-indigo-600 hover:text-indigo-500">
-                Forgot your password?
-              </span>
-            </div>
-          </div> */}
 
           <div>
             <button

@@ -39,7 +39,7 @@ import {
   Refresh,
 } from "@mui/icons-material"
 import CheckIcon from '@mui/icons-material/Check';
-import TransferItemDialog from "../components/TransferitemDialog";
+import TransferItemDialog from "../components/TransferItemDialog";
 const Transfer = () => {
   const theme = useTheme()
   const [openAddItemDialog, setOpenAddItemDialog] = useState(false)
