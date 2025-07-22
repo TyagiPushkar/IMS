@@ -6,21 +6,27 @@ function Login() {
   const [form, setForm] = useState({
     AdminMail: "",
     Password: "",
+    captchaInput: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaText, setCaptchaText] = useState("");
+  const [captchaError, setCaptchaError] = useState("");
 
-  // Load reCAPTCHA script
+  // Generate random CAPTCHA text
+  const generateCaptcha = () => {
+    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#%$&*";
+    let captcha = "";
+    for (let i = 0; i < 6; i++) {
+      captcha += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptchaText(captcha);
+    setCaptchaError("");
+  };
+
+  // Generate CAPTCHA on component mount
   useEffect(() => {
-    const loadRecaptcha = () => {
-      const script = document.createElement("script");
-      script.src = `https://www.google.com/recaptcha/api.js?render=6LcHNIsrAAAAAPFS338WaDmn6sEh3gzWNaxv0kA1`;
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
-    };
-
-    loadRecaptcha();
+    generateCaptcha();
   }, []);
 
   const handleInputChange = (e) => {
@@ -31,19 +37,25 @@ function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setCaptchaError("");
+
+    // Validate CAPTCHA first
+    if (form.captchaInput !== captchaText) {
+      setCaptchaError("CAPTCHA verification failed. Please try again.");
+      generateCaptcha(); // Generate new CAPTCHA on failure
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Get reCAPTCHA token
-      const recaptchaToken = await window.grecaptcha.execute('6LcHNIsrAAAAAPFS338WaDmn6sEh3gzWNaxv0kA1', {action: 'login'});
-
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/login.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...form,
-          recaptchaToken
+          AdminMail: form.AdminMail,
+          Password: form.Password
         }),
       });
 
@@ -53,9 +65,11 @@ function Login() {
         navigate("/dashboard");
       } else {
         setError(result.message || "Invalid login credentials");
+        generateCaptcha(); // Generate new CAPTCHA on login failure
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
+      generateCaptcha(); // Generate new CAPTCHA on error
     } finally {
       setLoading(false);
     }
@@ -103,12 +117,43 @@ function Login() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="relative block w-full rounded-b-md border-0 py-1.5 px-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                className="relative block w-full border-0 py-1.5 px-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 placeholder="Password"
                 value={form.Password}
                 onChange={handleInputChange}
               />
             </div>
+            <div className="mt-4">
+  <div className="flex items-center justify-between mb-2">
+    <label htmlFor="captcha" className="block text-sm font-medium text-gray-700">
+      CAPTCHA Verification
+    </label>
+    <button
+      type="button"
+      onClick={generateCaptcha}
+      className="text-xs text-indigo-600 hover:text-indigo-500"
+    >
+      Refresh CAPTCHA
+    </button>
+  </div>
+  <div className="flex items-center space-x-4">
+    <div className="flex-1 bg-gray-100 p-2 rounded-md text-center font-mono text-lg tracking-widest select-none relative">
+      <div className="absolute inset-0 backdrop-blur-[1px] bg-white/30"></div>
+      <span className="relative z-10">{captchaText}</span>
+    </div>
+    <input
+      id="captchaInput"
+      name="captchaInput"
+      type="text"
+      required
+      className="flex-1 relative block w-full rounded-md border-0 py-1.5 px-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+      placeholder="Enter CAPTCHA"
+      value={form.captchaInput}
+      onChange={handleInputChange}
+    />
+  </div>
+  {captchaError && <p className="mt-1 text-red-500 text-sm">{captchaError}</p>}
+</div>
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
