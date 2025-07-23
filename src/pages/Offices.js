@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+"use client"
+import { useState, useEffect } from "react"
 import {
   Box,
   Paper,
@@ -19,73 +20,98 @@ import {
   Fade,
   Avatar,
   Stack,
-  TablePagination,
-} from "@mui/material";
-import {
-  Search as SearchIcon,
-  Add as AddIcon,
-  Business as BusinessIcon,
-  Phone as PhoneIcon,
-  LocationOn as LocationIcon,
-} from "@mui/icons-material";
-import AddOfficeDialog from "../components/AddOfficeDialog";
+  TablePagination
+} from "@mui/material"
+import { LocationOn as LocationIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, Business as BusinessIcon, Phone as PhoneIcon } from "@mui/icons-material"
+import AddOfficeDialog from "../components/AddOfficeDialog"
+import { useNavigate } from "react-router-dom" // Import useNavigate
 
 function Offices() {
-  const [openAddOfficeDialog, setOpenAddOfficeDialog] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [officeData, setOfficeData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  
-  const fetchOfficeData = async () => {
-    try {
-      const response = await fetch(
-        "https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php"
-      );
-      const result = await response.json();
+  const navigate = useNavigate() // Initialize useNavigate
+  const [openAddOfficeDialog, setOpenAddOfficeDialog] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [officeData, setOfficeData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
 
+  const fetchOfficeData = async () => {
+    setLoading(true)
+    setError("") // Clear previous errors
+
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!userObject || !sessionToken || !userObject.OfficeId) {
+      setError("Authentication required or Office ID not found. Please log in.")
+      setLoading(false)
+      navigate("/login") // Redirect to login if no session or OfficeId
+      return
+    }
+
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php", {
+        method: "POST", // Changed to POST
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+        }),
+      })
+
+      if (response.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
       if (result.success) {
-        setOfficeData(result.data);
-        setError("");
+        setOfficeData(result.data)
+        setError("")
       } else {
-        setError(result.message);
+        setError(result.message || "Failed to fetch office data.")
       }
     } catch (err) {
-      setError("Failed to fetch office data.");
+      console.error("Fetch error:", err)
+      setError("Failed to fetch office data. Check console for details.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-  
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  }
 
-    
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
   useEffect(() => {
-    fetchOfficeData();
-  }, []);
+    fetchOfficeData()
+  }, [])
 
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const filteredOffices = officeData.filter((office) =>
-    office?.OfficeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    office?.OfficeCode?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const paginatedOffices = filteredOffices.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+    setSearchTerm(event.target.value)
+  }
+  const filteredOffices = officeData.filter(
+    (office) =>
+      office?.OfficeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      office?.OfficeCode?.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+  const paginatedOffices = filteredOffices.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
   return (
-    <Box sx={{ p: 0, maxWidth: '100%' }}>
+    <Box sx={{ p: 0, maxWidth: "100%" }}>
       {/* Header */}
       <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
@@ -95,11 +121,10 @@ function Offices() {
           Manage and view all office information
         </Typography>
       </Paper>
-
       {/* Main Content */}
-      <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ overflow: "hidden" }}>
         {/* Toolbar */}
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
@@ -120,18 +145,13 @@ function Offices() {
             </Grid>
             <Grid item xs={12} md={6}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setOpenAddOfficeDialog(true)}
-                >
+                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddOfficeDialog(true)}>
                   Add Office
                 </Button>
               </Stack>
             </Grid>
           </Grid>
         </Box>
-
         {/* Table */}
         <TableContainer>
           {loading ? (
@@ -143,95 +163,92 @@ function Offices() {
               <Alert severity="error">{error}</Alert>
             </Box>
           ) : (
-                <Fade in={!loading}>
-                  <Box>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Office Code</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Office Name</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Address</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Admin</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Contact</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-  {paginatedOffices.map((office, index) => (
-    <TableRow
-      key={office.OfficeCode || index}
-      hover
-      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-    >
-      <TableCell>
-        <Chip
-          label={office.OfficeCode}
-          color="primary"
-          size="small"
-          icon={<BusinessIcon fontSize="small" />}
-        />
-      </TableCell>
-      <TableCell>
-        <Typography variant="body2" fontWeight={500}>
-          {office.OfficeName}
-        </Typography>
-      </TableCell>
-      <TableCell>
-        <Box display="flex" alignItems="center">
-          <LocationIcon color="action" sx={{ mr: 1, fontSize: 18 }} />
-          <Typography variant="body2" color="text.secondary">
-            {office.OfficeAddress}
-          </Typography>
-        </Box>
-      </TableCell>
-      <TableCell>
-        <Box display="flex" alignItems="center">
-          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: 'secondary.main' }}>
-            {office.AdminName?.charAt(0)?.toUpperCase()}
-          </Avatar>
-          <Box>
-            <Typography variant="body2">{office.AdminName}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {office.AdminMail}
-            </Typography>
-          </Box>
-        </Box>
-      </TableCell>
-      <TableCell>
-        <Box display="flex" alignItems="center">
-          <PhoneIcon color="action" sx={{ mr: 1, fontSize: 18 }} />
-          <Typography variant="body2">{office.AdminPhone}</Typography>
-        </Box>
-      </TableCell>
-    </TableRow>
-  ))}
-
-  {paginatedOffices.length === 0 && !loading && (
-    <TableRow>
-      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-        <Typography variant="body1" color="text.secondary">
-          No offices found
-        </Typography>
-      </TableCell>
-    </TableRow>
-  )}
-</TableBody>
-
-                  </Table>
-                  <TablePagination
-  component="div"
-  count={filteredOffices.length}
-  page={page}
-  onPageChange={handleChangePage}
-  rowsPerPage={rowsPerPage}
-  onRowsPerPageChange={handleChangeRowsPerPage}
-  rowsPerPageOptions={[5, 10, 25, 50]}
-/>
-</Box>
+            <Fade in={!loading}>
+              <Box>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>Office Code</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Office Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Address</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Admin</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Contact</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedOffices.map((office, index) => (
+                      <TableRow
+                        key={office.OfficeCode || index}
+                        hover
+                        sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+                      >
+                        <TableCell>
+                          <Chip
+                            label={office.OfficeCode}
+                            color="primary"
+                            size="small"
+                            icon={<BusinessIcon fontSize="small" />}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>
+                            {office.OfficeName}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <LocationIcon color="action" sx={{ mr: 1, fontSize: 18 }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {office.OfficeAddress}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: "secondary.main" }}>
+                              {office.AdminName?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2">{office.AdminName}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {office.AdminMail}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <PhoneIcon color="action" sx={{ mr: 1, fontSize: 18 }} />
+                            <Typography variant="body2">{office.AdminPhone}</Typography>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {paginatedOffices.length === 0 && !loading && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                          <Typography variant="body1" color="text.secondary">
+                            No offices found
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  component="div"
+                  count={filteredOffices.length}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                />
+              </Box>
             </Fade>
           )}
         </TableContainer>
       </Paper>
-
       {/* Add Office Dialog */}
       <AddOfficeDialog
         open={openAddOfficeDialog}
@@ -239,7 +256,7 @@ function Offices() {
         refreshOffice={fetchOfficeData}
       />
     </Box>
-  );
+  )
 }
 
-export default Offices;
+export default Offices

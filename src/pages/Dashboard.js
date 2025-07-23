@@ -1,13 +1,11 @@
 "use client"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Grid,
-  Chip,
   CircularProgress,
   Alert,
   Paper,
@@ -17,13 +15,7 @@ import {
   TextField,
   Checkbox,
 } from "@mui/material"
-import {
-  TrendingUp,
-  TrendingDown,
-  Store,
-  CheckBoxOutlineBlank,
-  CheckBox,
-} from "@mui/icons-material"
+import { Store, CheckBoxOutlineBlank, CheckBox } from "@mui/icons-material"
 import {
   BarChart,
   Bar,
@@ -37,134 +29,183 @@ import {
   Cell,
   Legend,
 } from "recharts"
+import { useNavigate } from "react-router-dom" // Import useNavigate
 
 const Dashboard = () => {
   const theme = useTheme()
+  const navigate = useNavigate() // Initialize useNavigate
+
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [offices, setOffices] = useState([])
   const [selectedOffices, setSelectedOffices] = useState([])
   const [officesLoading, setOfficesLoading] = useState(false)
-  const userObject = JSON.parse(localStorage.getItem("user"));
-  const role = userObject?.Role;
-  const OfficeId = userObject?.OfficeId;
-  // Fetch offices data
-  useEffect(() => {
-    const fetchOffices = async () => {
-      try {
-        setOfficesLoading(true)
-        const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php")
-        const result = await response.json()
 
-        if (result.success) {
-          setOffices(result.data)
-        } else {
-          console.error("Failed to fetch offices")
-        }
-      } catch (err) {
-        console.error("Error fetching offices:", err)
-      } finally {
-        setOfficesLoading(false)
-      }
+  const userObject = JSON.parse(localStorage.getItem("user"))
+  const role = userObject?.Role
+  
+  // Memoize the selected office IDs to prevent unnecessary re-renders of the dashboard data fetch
+  const selectedOfficeIdsForFetch = useMemo(() => {
+    return selectedOffices.map((office) => office.ID)
+  }, [selectedOffices])
+
+ const userData = useMemo(() => {
+    return {
+      userObject: JSON.parse(localStorage.getItem("user")),
+      sessionToken: localStorage.getItem("sessionToken"),
+      OfficeId: JSON.parse(localStorage.getItem("user"))?.OfficeId,
+      role: JSON.parse(localStorage.getItem("user"))?.Role
     }
-
-    fetchOffices()
   }, [])
 
-  // Fetch dashboard data
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true)
+  // Fetch offices data - wrapped in useCallback with stable dependencies
+  const fetchOffices = useCallback(async () => {
+    setOfficesLoading(true)
+    setError(null)
 
-        // Build URL with OfficeId parameter
-        let url = "https://namami-infotech.com/SatyaMicro/src/dashboard/dashboard.php"
-        if (role !== "HO") {
-          url += `?OfficeId=${OfficeId}`
-        } else if (selectedOffices.length > 0) {
-          const officeIds = selectedOffices.map((office) => office.ID).join(",")
-          url += `?OfficeId=${officeIds}`
-        }
-
-        const response = await fetch(url)
-        const result = await response.json()
-
-        if (result.success) {
-          setDashboardData(result.data)
-        } else {
-          setError("Failed to fetch dashboard data")
-        }
-      } catch (err) {
-        setError("Error connecting to server")
-        console.error("Dashboard fetch error:", err)
-      } finally {
-        setLoading(false)
-      }
+    if (!userData.userObject || !userData.sessionToken || !userData.OfficeId) {
+      setError("Authentication required or Office ID not found. Please log in.")
+      setOfficesLoading(false)
+      navigate("/login")
+      return
     }
 
-    fetchDashboardData()
-  }, [selectedOffices]) // Add selectedOffices as dependency
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userData.OfficeId,
+          sessionToken: userData.sessionToken,
+        }),
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setOffices(result.data)
+        // Set initial selected offices (first time only)
+        if (selectedOffices.length === 0 && result.data.length > 0) {
+          setSelectedOffices([result.data[0]]) // Select first office by default
+        }
+      } else {
+        setError(result.message || "Failed to fetch offices.")
+      }
+    } catch (err) {
+      console.error("Error fetching offices:", err)
+      setError("An error occurred while fetching offices.")
+    } finally {
+      setOfficesLoading(false)
+    }
+  }, [navigate, userData.userObject, userData.sessionToken, userData.OfficeId])
+
+  // Fetch dashboard data - wrapped in useCallback with stable dependencies
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    if (!userData.userObject || !userData.sessionToken || !userData.OfficeId) {
+      setError("Authentication required or Office ID not found. Please log in.")
+      setLoading(false)
+      navigate("/login")
+      return
+    }
+
+    try {
+      const payload = {
+        userId: userData.OfficeId,
+        sessionToken: userData.sessionToken,
+        role: userData.role,
+        selectedOfficeIds: selectedOfficeIdsForFetch,
+      }
+
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/dashboard/dashboard.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setDashboardData(result.data)
+      } else {
+        setError(result.message || "Failed to fetch dashboard data.")
+      }
+    } catch (err) {
+      setError("Error connecting to server.")
+      console.error("Dashboard fetch error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [navigate, userData, selectedOfficeIdsForFetch])
+
+  // Effect for fetching offices - runs only once on mount
+  useEffect(() => {
+    fetchOffices()
+  }, [fetchOffices])
+
+  // Effect for fetching dashboard data
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchDashboardData()
+    }, 100) // Small delay to prevent immediate fetch
+
+    return () => clearTimeout(timer) // Cleanup
+  }, [fetchDashboardData, selectedOfficeIdsForFetch]) // Only re-run when these change
 
   // Prepare chart data
   const prepareMonthlyData = () => {
     if (!dashboardData?.monthly_purchases) return []
-
     return dashboardData.monthly_purchases.map((item) => ({
       month: new Date(item.month).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
       amount: Number.parseFloat(item.monthly_total),
     }))
   }
-
   const prepareStockData = () => {
     if (!dashboardData?.stock_status) return []
-
     return dashboardData.stock_status.map((item, index) => ({
       name: item.item_name,
       value: Number.parseInt(item.total_quantity),
       category: item.Category || "Uncategorized",
     }))
   }
-
   // Chart colors
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"]
-
   // Metric cards data
   const getMetricCards = () => [
     {
       title: "Total Purchase",
       value: `₹${dashboardData?.total_purchase || "0"}`,
-      // change: "+12.5%",
-      trend: "up",
       icon: "₹",
       color: theme.palette.success.main,
     },
-    // {
-    //   title: "Total Items",
-    //   value: dashboardData?.total_items || "0",
-    //   change: "+8.2%",
-    //   trend: "up",
-    //   icon: <Inventory />,
-    //   color: theme.palette.info.main,
-    // },
     {
       title: "Total Offices",
       value: dashboardData?.total_offices || "0",
-      // change: "-2.1%",
-      trend: "up",
       icon: <Store />,
       color: theme.palette.warning.main,
     },
-    // {
-    //   title: "Active Stock Items",
-    //   value: dashboardData?.stock_status?.filter((item) => Number.parseInt(item.total_quantity) > 0).length || "0",
-    //   change: "+5.3%",
-    //   trend: "up",
-    //   icon: <ShoppingCart />,
-    //   color: theme.palette.primary.main,
-    // },
   ]
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -172,7 +213,6 @@ const Dashboard = () => {
       </Box>
     )
   }
-
   if (error) {
     return (
       <Box p={3}>
@@ -180,66 +220,45 @@ const Dashboard = () => {
       </Box>
     )
   }
-
   const monthlyData = prepareMonthlyData()
   const stockData = prepareStockData()
   const metricCards = getMetricCards()
-  
   return (
     <Box sx={{ p: 3, backgroundColor: theme.palette.grey[50], minHeight: "100vh" }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: "bold", color: theme.palette.text.primary }}>
         Dashboard Overview
       </Typography>
-
-      
-<Box style={{display: "flex", gap:"20px", alignItems: "center", marginBottom: "20px"}}>
-      {/* Metric Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {metricCards.map((card, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card
-              sx={{
-                height: "100%",
-                background: `linear-gradient(135deg, ${alpha(card.color, 0.1)} 0%, ${alpha(card.color, 0.05)} 100%)`,
-                border: `1px solid ${alpha(card.color, 0.2)}`,
-                transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: theme.shadows[8],
-                },
-              }}
-            >
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                  <Box sx={{ color: card.color }}>{card.icon}</Box>
-                  <Chip
-                    label={card.change}
-                    size="small"
-                    icon={card.trend === "up" ? <TrendingUp /> : <TrendingDown />}
-                    sx={{
-                      backgroundColor:
-                        card.trend === "up"
-                          ? alpha(theme.palette.success.main, 0.1)
-                          : alpha(theme.palette.error.main, 0.1),
-                      color: card.trend === "up" ? theme.palette.success.main : theme.palette.error.main,
-                      "& .MuiChip-icon": {
-                        color: "inherit",
-                      },
-                    }}
-                  />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: "bold", mb: 1, color: theme.palette.text.primary }}>
-                  {card.value}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {card.title}
-                </Typography>
-              </CardContent>
-            </Card>
-            
-          </Grid>
-          
-        ))}
+      <Box style={{ display: "flex", gap: "20px", alignItems: "center", marginBottom: "20px" }}>
+        {/* Metric Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {metricCards.map((card, index) => (
+            <Grid item xs={12} sm={6} md={3} key={index}>
+              <Card
+                sx={{
+                  height: "100%",
+                  background: `linear-gradient(135deg, ${alpha(card.color, 0.1)} 0%, ${alpha(card.color, 0.05)} 100%)`,
+                  border: `1px solid ${alpha(card.color, 0.2)}`,
+                  transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: theme.shadows[8],
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                    <Box sx={{ color: card.color }}>{card.icon}</Box>
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: "bold", mb: 1, color: theme.palette.text.primary }}>
+                    {card.value}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {card.title}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
         {role === "HO" && (
           <Autocomplete
@@ -265,9 +284,6 @@ const Dashboard = () => {
                   <Typography variant="body1" sx={{ fontWeight: "bold" }}>
                     {option.OfficeCode} • {option.OfficeName}
                   </Typography>
-                  {/* <Typography variant="body2" color="text.secondary">
-                    {option.OfficeCode} • {option.OfficeAddress}
-                  </Typography> */}
                 </Box>
               </li>
             )}
@@ -286,7 +302,7 @@ const Dashboard = () => {
             sx={{ minWidth: 300 }}
           />
         )}
-        </Box>
+      </Box>
       {/* Charts Section */}
       <Grid container spacing={3}>
         {/* Monthly Purchases Chart */}
@@ -314,7 +330,6 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </Paper>
         </Grid>
-
         {/* Stock Status Chart */}
         <Grid item xs={12} lg={4}>
           <Paper sx={{ p: 2, height: 400 }}>
@@ -356,11 +371,8 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </Paper>
         </Grid>
-
-        
       </Grid>
     </Box>
   )
 }
-
 export default Dashboard

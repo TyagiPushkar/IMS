@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client"
+
+import { useState } from "react"
 import {
   Dialog,
   DialogActions,
@@ -19,7 +21,7 @@ import {
   Fade,
   CircularProgress,
   InputAdornment,
-} from "@mui/material";
+} from "@mui/material"
 import {
   Close as CloseIcon,
   Business as BusinessIcon,
@@ -28,7 +30,7 @@ import {
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
   VpnKey as PasswordIcon,
-} from "@mui/icons-material";
+} from "@mui/icons-material"
 
 const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
   const [form, setForm] = useState({
@@ -40,24 +42,24 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
     AdminPhone: "",
     Password: "",
     Role: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    const { name, value } = e.target
+    setForm({ ...form, [name]: value })
     // Clear field error when user types
     if (fieldErrors[name]) {
-      setFieldErrors({ ...fieldErrors, [name]: "" });
+      setFieldErrors({ ...fieldErrors, [name]: "" })
     }
-    if (error) setError("");
-  };
+    if (error) setError("")
+  }
 
   const validateForm = () => {
-    const errors = {};
+    const errors = {}
     const requiredFields = [
       "OfficeCode",
       "OfficeName",
@@ -67,48 +69,39 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
       "AdminPhone",
       "Password",
       "Role",
-    ];
-
+    ]
     requiredFields.forEach((field) => {
       if (!form[field]) {
-        errors[field] = "This field is required";
+        errors[field] = "This field is required"
       }
-    });
-
+    })
     // Email validation
     if (form.AdminMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.AdminMail)) {
-      errors.AdminMail = "Please enter a valid email address";
+      errors.AdminMail = "Please enter a valid email address"
     }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   const handleSave = async () => {
     if (!validateForm()) {
-      setError("Please fix the errors above");
-      return;
+      setError("Please fix the errors above")
+      return
     }
-
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
+    setLoading(true)
+    setError("")
+    setSuccess("")
     try {
-      const response = await fetch(
-        "https://namami-infotech.com/SatyaMicro/src/offices/add_offices.php",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(form),
-        }
-      );
-
-      const result = await response.json();
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/add_offices.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      })
+      const result = await response.json()
       if (result.success) {
-        setSuccess("Office added successfully!");
+        setSuccess("Office added successfully!")
         setForm({
           OfficeCode: "",
           OfficeName: "",
@@ -118,26 +111,26 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
           AdminPhone: "",
           Password: "",
           Role: "",
-        });
+        })
         setTimeout(() => {
-          onClose();
-          refreshOffice();
-        }, 1500);
+          onClose()
+          refreshOffice() // This calls the fetchOfficeData in Offices.js
+        }, 1500)
       } else {
-        setError(result.message || "Failed to add office.");
+        setError(result.message || "Failed to add office.")
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError("Network error. Please try again.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleClose = () => {
     if (!loading) {
-      onClose();
+      onClose()
     }
-  };
+  }
 
   return (
     <Dialog
@@ -172,7 +165,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-
       <DialogContent sx={{ p: 3 }}>
         <Fade in={Boolean(success)}>
           <Box mb={2}>
@@ -183,7 +175,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             )}
           </Box>
         </Fade>
-
         <Fade in={Boolean(error)}>
           <Box mb={2}>
             {error && (
@@ -193,7 +184,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             )}
           </Box>
         </Fade>
-
         <Grid container spacing={3}>
           {/* Office Code */}
           <Grid item xs={12} sm={6}>
@@ -216,7 +206,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Office Name */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -231,7 +220,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Office Address */}
           <Grid item xs={12}>
             <TextField
@@ -255,7 +243,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Admin Name */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -277,7 +264,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Admin Email */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -300,7 +286,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Admin Phone */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -322,7 +307,6 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Password */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -345,18 +329,11 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Role */}
           <Grid item xs={12}>
             <FormControl fullWidth required error={Boolean(fieldErrors.Role)}>
               <InputLabel>Role</InputLabel>
-              <Select
-                label="Role"
-                name="Role"
-                value={form.Role}
-                onChange={handleInputChange}
-                disabled={loading}
-              >
+              <Select label="Role" name="Role" value={form.Role} onChange={handleInputChange} disabled={loading}>
                 <MenuItem value="Admin">Admin</MenuItem>
                 <MenuItem value="SuperAdmin">Super Admin</MenuItem>
               </Select>
@@ -368,15 +345,14 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             </FormControl>
           </Grid>
         </Grid>
-
         <Box mt={3}>
           <Divider />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            <strong>Note:</strong> All fields marked with * are required. The admin will receive login credentials via email.
+            <strong>Note:</strong> All fields marked with * are required. The admin will receive login credentials via
+            email.
           </Typography>
         </Box>
       </DialogContent>
-
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button onClick={handleClose} disabled={loading} size="large">
           Cancel
@@ -399,7 +375,7 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
         </Button>
       </DialogActions>
     </Dialog>
-  );
-};
+  )
+}
 
-export default AddOfficeDialog;
+export default AddOfficeDialog

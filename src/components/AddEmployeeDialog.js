@@ -8,7 +8,7 @@ import {
   DialogTitle,
   Button,
   TextField,
-  Autocomplete,
+  Autocomplete, // Used for the office list
   Box,
   Grid,
   Typography,
@@ -36,11 +36,10 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
     Mail: "",
     OfficeCode: "",
   })
-
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [officeData, setOfficeData] = useState([])
+  const [officeData, setOfficeData] = useState([]) // State to hold office list
   const [officeLoading, setOfficeLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
 
@@ -72,15 +71,39 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
   const fetchOfficeData = async () => {
     setOfficeLoading(true)
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php")
+      // This endpoint is already secured with session validation
+      const userObject = JSON.parse(localStorage.getItem("user"))
+      const sessionToken = localStorage.getItem("sessionToken")
+
+      if (!userObject || !sessionToken || !userObject.OfficeId) {
+        setError("Authentication required to fetch office data. Please log in.")
+        setOfficeLoading(false)
+        return
+      }
+
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId,
+          sessionToken: sessionToken,
+        }),
+      })
       const result = await response.json()
+      if (response.status === 401) {
+        setError("Session expired or invalid. Please log in again.")
+        // Optionally redirect to login here if this dialog is not part of a protected route
+        return
+      }
       if (result.success) {
         setOfficeData(result.data)
       } else {
         setError("Failed to load office data: " + result.message)
       }
     } catch (err) {
-      setError("Failed to fetch office data.")
+      setError("Failed to fetch office data. Check console for details.")
     } finally {
       setOfficeLoading(false)
     }
@@ -106,22 +129,22 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
-
     // Real-time validation
     const fieldError = validateField(name, value)
     setFieldErrors((prev) => ({
       ...prev,
       [name]: fieldError,
     }))
-
     // Clear general error when user starts typing
     if (error) setError("")
   }
 
-  // Handle office code selection
+  // Handle office code selection from Autocomplete
   const handleOfficeCodeChange = (event, newValue) => {
-    setForm({ ...form, OfficeCode: newValue || "" })
-    const fieldError = validateField("OfficeCode", newValue)
+    // Extract just the code if the full string was selected (e.g., "OFF001 - Main Office")
+    const code = newValue?.split(" - ")[0] || ""
+    setForm({ ...form, OfficeCode: code })
+    const fieldError = validateField("OfficeCode", code)
     setFieldErrors((prev) => ({
       ...prev,
       OfficeCode: fieldError,
@@ -146,11 +169,9 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
       setError("Please fix the errors above")
       return
     }
-
     setLoading(true)
     setError("")
     setSuccess("")
-
     try {
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/employees/add_employees.php", {
         method: "POST",
@@ -159,14 +180,12 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
         },
         body: JSON.stringify(form),
       })
-
       const result = await response.json()
-
       if (result.success) {
         setSuccess("Employee added successfully!")
         setTimeout(() => {
           onClose()
-          refreshEmployees()
+          refreshEmployees() // Refresh employee list in parent component
         }, 1500)
       } else {
         setError(result.message || "Failed to add employee.")
@@ -219,7 +238,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-
       <DialogContent sx={{ p: 3 }}>
         {/* Success/Error Messages */}
         <Fade in={Boolean(success)}>
@@ -231,7 +249,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
             )}
           </Box>
         </Fade>
-
         <Fade in={Boolean(error)}>
           <Box mb={2}>
             {error && (
@@ -241,7 +258,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
             )}
           </Box>
         </Fade>
-
         {/* Form Fields */}
         <Grid container spacing={3}>
           {/* Employee ID */}
@@ -265,7 +281,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Employee Name */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -287,7 +302,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Email */}
           <Grid item xs={12}>
             <TextField
@@ -310,70 +324,62 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
               disabled={loading}
             />
           </Grid>
-
           {/* Office Code */}
-<Grid item xs={12}>
-  <Autocomplete
-    value={form.OfficeCode}
-    onChange={(event, newValue) => {
-      // Extract just the code if the full string was selected
-      const code = newValue?.split(' - ')[0] || '';
-      handleOfficeCodeChange(event, code);
-    }}
-    options={officeData.map((office) => `${office.OfficeCode} - ${office.OfficeName}`)}
-    loading={officeLoading}
-    disabled={loading}
-    renderInput={(params) => (
-      <TextField
-        {...params}
-        required
-        label="Office Code"
-        error={Boolean(fieldErrors.OfficeCode)}
-        helperText={fieldErrors.OfficeCode || "Select or enter office code"}
-        InputProps={{
-          ...params.InputProps,
-          startAdornment: (
-            <InputAdornment position="start">
-              <BusinessIcon color="action" />
-            </InputAdornment>
-          ),
-          endAdornment: (
-            <>
-              {officeLoading ? <CircularProgress color="inherit" size={20} /> : null}
-              {params.InputProps.endAdornment}
-            </>
-          ),
-        }}
-      />
-    )}
-    renderOption={(props, option) => (
-      <Box component="li" {...props}>
-        <Chip label={option.split(' - ')[0]} size="small" sx={{ mr: 1 }} />
-        {option}
-      </Box>
-    )}
-    getOptionLabel={(option) => {
-      // For freeSolo, option might be just the code
-      if (typeof option === 'string' && option.includes(' - ')) {
-        return option;
-      }
-      // Find the matching office to display name
-      const office = officeData.find(o => o.OfficeCode === option);
-      return office ? `${office.OfficeCode} - ${office.OfficeName}` : option;
-    }}
-    filterOptions={(options, state) => {
-      // Search both code and name
-      const inputValue = state.inputValue.toLowerCase();
-      return options.filter(option => 
-        option.toLowerCase().includes(inputValue)
-      );
-    }}
-    freeSolo
-    disableClearable
-  />
-</Grid>
+          <Grid item xs={12}>
+            <Autocomplete
+              value={form.OfficeCode}
+              onChange={handleOfficeCodeChange}
+              options={officeData.map((office) => `${office.OfficeCode} - ${office.OfficeName}`)}
+              loading={officeLoading}
+              disabled={loading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  required
+                  label="Office Code"
+                  error={Boolean(fieldErrors.OfficeCode)}
+                  helperText={fieldErrors.OfficeCode || "Select or enter office code"}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessIcon color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <>
+                        {officeLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <Chip label={option.split(" - ")[0]} size="small" sx={{ mr: 1 }} />
+                  {option}
+                </Box>
+              )}
+              getOptionLabel={(option) => {
+                // For freeSolo, option might be just the code
+                if (typeof option === "string" && option.includes(" - ")) {
+                  return option
+                }
+                // Find the matching office to display name
+                const office = officeData.find((o) => o.OfficeCode === option)
+                return office ? `${office.OfficeCode} - ${office.OfficeName}` : option
+              }}
+              filterOptions={(options, state) => {
+                // Search both code and name
+                const inputValue = state.inputValue.toLowerCase()
+                return options.filter((option) => option.toLowerCase().includes(inputValue))
+              }}
+              freeSolo
+              disableClearable
+            />
+          </Grid>
         </Grid>
-
         {/* Form Info */}
         <Box mt={3}>
           <Divider />
@@ -383,7 +389,6 @@ const AddEmployeeDialog = ({ open, onClose, refreshEmployees }) => {
           </Typography>
         </Box>
       </DialogContent>
-
       {/* Actions */}
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button onClick={handleClose} disabled={loading} size="large">

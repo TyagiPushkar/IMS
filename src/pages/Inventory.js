@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+"use client"
+import { useState, useEffect, useMemo } from "react"
 import {
   Box,
   Paper,
@@ -22,171 +23,178 @@ import {
   Tooltip,
   Avatar,
   Stack,
-} from "@mui/material";
+} from "@mui/material"
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Download as DownloadIcon,
   Refresh as RefreshIcon,
   Inventory as InventoryIcon,
-} from "@mui/icons-material";
-import AddItemDialog from "../components/AddItemDialog";
-import AddInventoryDialog from "../components/AddInventoryDialog";
+} from "@mui/icons-material"
+import AddItemDialog from "../components/AddItemDialog"
+import AddInventoryDialog from "../components/AddInventoryDialog"
+import { useNavigate } from "react-router-dom" // Import useNavigate
 
 function Inventory() {
+  const navigate = useNavigate() // Initialize useNavigate
+
   // State management
-  const [openAddItemDialog, setOpenAddItemDialog] = useState(false);
-  const [openAddInventoryDialog, setOpenAddInventoryDialog] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [inventoryData, setInventoryData] = useState([]);
-  const [itemsData, setItemsData] = useState([]); // For storing all items with categories
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  
+  const [openAddItemDialog, setOpenAddItemDialog] = useState(false)
+  const [openAddInventoryDialog, setOpenAddInventoryDialog] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [inventoryData, setInventoryData] = useState([])
+  const [itemsData, setItemsData] = useState([]) // For storing all items with categories
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
   // Pagination state
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  
-  // Menu state
- 
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   // Fetch inventory data and items data
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const userObject = JSON.parse(localStorage.getItem("user"));
-        const officeId = userObject?.OfficeId;
+  const fetchData = async () => {
+    setLoading(true)
+    setError("") // Clear previous errors
 
-        if (!officeId) {
-          throw new Error("OfficeId not found in localStorage.");
-        }
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
 
-        // Fetch inventory data
-        const inventoryResponse = await fetch(
-          `https://namami-infotech.com/SatyaMicro/src/stock/get_stock.php?OfficeId=${officeId}`
-        );
-        const inventoryResult = await inventoryResponse.json();
+    if (!userObject || !sessionToken || !userObject.OfficeId) {
+      setError("Authentication required or Office ID not found. Please log in.")
+      setLoading(false)
+      navigate("/login") // Redirect to login if no session or OfficeId
+      return
+    }
 
-        // Fetch items data (for categories)
-        const itemsResponse = await fetch(
-          "https://namami-infotech.com/SatyaMicro/src/item/get_item.php"
-        );
-        const itemsResult = await itemsResponse.json();
+    try {
+      // Fetch inventory data (now with POST and session validation)
+      const inventoryResponse = await fetch("https://namami-infotech.com/SatyaMicro/src/stock/get_stock.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+        }),
+      })
 
-        if (inventoryResult.success && itemsResult.success) {
-          setInventoryData(inventoryResult.data);
-          setItemsData(itemsResult.data);
-          setError("");
-        } else {
-          setError(inventoryResult.message || itemsResult.message || "Failed to fetch data");
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (inventoryResponse.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
       }
-    };
 
-    fetchData();
-  }, []);
+      const inventoryResult = await inventoryResponse.json()
+
+      // Fetch items data (now also POST with session validation)
+      const itemsResponse = await fetch("https://namami-infotech.com/SatyaMicro/src/item/get_item.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+        }),
+      })
+
+      if (itemsResponse.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const itemsResult = await itemsResponse.json()
+
+      if (inventoryResult.success && itemsResult.success) {
+        setInventoryData(inventoryResult.data)
+        setItemsData(itemsResult.data)
+        setError("")
+      } else {
+        setError(inventoryResult.message || itemsResult.message || "Failed to fetch data")
+      }
+    } catch (err) {
+      console.error("Fetch error:", err)
+      setError("Failed to fetch inventory data. Check console for details.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   // Combine inventory data with category information
   const enrichedInventoryData = useMemo(() => {
-    return inventoryData.map(inventoryItem => {
-      const matchingItem = itemsData.find(item => item.Name === inventoryItem.Item);
+    return inventoryData.map((inventoryItem) => {
+      const matchingItem = itemsData.find((item) => item.Name === inventoryItem.Item)
       return {
         ...inventoryItem,
-        Category: matchingItem?.Category || "Uncategorized"
-      };
-    });
-  }, [inventoryData, itemsData]);
+        Category: matchingItem?.Category || "Uncategorized",
+      }
+    })
+  }, [inventoryData, itemsData])
 
   // Filter logic
   const filteredItems = useMemo(() => {
-    return enrichedInventoryData.filter((item) =>
-      item?.Item?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item?.Category?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [enrichedInventoryData, searchTerm]);
+    return enrichedInventoryData.filter(
+      (item) =>
+        item?.Item?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item?.Category?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+  }, [enrichedInventoryData, searchTerm])
 
   // Pagination logic
   const paginatedItems = useMemo(() => {
-    const startIndex = page * rowsPerPage;
-    return filteredItems.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredItems, page, rowsPerPage]);
+    const startIndex = page * rowsPerPage
+    return filteredItems.slice(startIndex, startIndex + rowsPerPage)
+  }, [filteredItems, page, rowsPerPage])
 
   // Event handlers
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-    setPage(0);
-  };
-
+    setSearchTerm(event.target.value)
+    setPage(0)
+  }
   const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
+    setPage(newPage)
+  }
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(0)
+  }
 
- 
-
-  const refreshData = async () => {
-    setLoading(true);
-    try {
-      const userObject = JSON.parse(localStorage.getItem("user"));
-      const officeId = userObject?.OfficeId;
-
-      // Fetch inventory data
-      const inventoryResponse = await fetch(
-        `https://namami-infotech.com/SatyaMicro/src/stock/get_stock.php?OfficeId=${officeId}`
-      );
-      const inventoryResult = await inventoryResponse.json();
-
-      // Fetch items data (for categories)
-      const itemsResponse = await fetch(
-        "https://namami-infotech.com/SatyaMicro/src/item/get_item.php"
-      );
-      const itemsResult = await itemsResponse.json();
-
-      if (inventoryResult.success && itemsResult.success) {
-        setInventoryData(inventoryResult.data);
-        setItemsData(itemsResult.data);
-        setError("");
-      } else {
-        setError(inventoryResult.message || itemsResult.message || "Failed to refresh data");
-      }
-    } catch (err) {
-      setError("Failed to refresh inventory data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const refreshData = () => {
+    fetchData() // Simply call fetchData to refresh
+  }
 
   const exportData = () => {
     const csvContent = [
-      ['Item', 'Category', 'Quantity', 'Updated At'],
-      ...filteredItems.map(item => [
-        item.Item, 
-        item.Category, 
-        item.Quantity, 
-        item.UpdateDateTime
-      ])
-    ].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
+      ["Item", "Category", "Quantity", "Updated At"],
+      ...filteredItems.map((item) => [item.Item, item.Category, item.Quantity, item.UpdateDateTime]),
+    ]
+      .map((row) => row.join(","))
+      .join("\n")
 
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "inventory.csv"
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
   return (
-    <Box sx={{ p: 0, maxWidth: '100%' }}>
+    <Box sx={{ p: 0, maxWidth: "100%" }}>
       {/* Header */}
       <Paper elevation={1} sx={{ p: 3, mb: 2 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
@@ -196,11 +204,10 @@ function Inventory() {
           Manage and track all inventory items in your office
         </Typography>
       </Paper>
-
       {/* Main Content */}
-      <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ overflow: "hidden" }}>
         {/* Toolbar */}
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
@@ -243,7 +250,6 @@ function Inventory() {
             </Grid>
           </Grid>
         </Box>
-
         {/* Table */}
         <TableContainer>
           {loading ? (
@@ -261,7 +267,9 @@ function Inventory() {
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Item</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }} align="right">Quantity</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">
+                      Quantity
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Last Updated</TableCell>
                   </TableRow>
                 </TableHead>
@@ -270,37 +278,28 @@ function Inventory() {
                     <TableRow
                       key={`${item.Item}-${index}`}
                       hover
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                     >
                       <TableCell>
                         <Box display="flex" alignItems="center">
-                          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: 'primary.main' }}>
+                          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: "primary.main" }}>
                             <InventoryIcon fontSize="small" />
                           </Avatar>
                           <Typography variant="body2">{item.Item}</Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={item.Category}
-                          size="small"
-                          variant="outlined"
-                        />
+                        <Chip label={item.Category} size="small" variant="outlined" />
                       </TableCell>
                       <TableCell align="right">
                         <Chip
                           label={item.Quantity}
-                          color={
-                            item.Quantity <= 5 ? 'error' : 
-                            item.Quantity <= 10 ? 'warning' : 'success'
-                          }
+                          color={item.Quantity <= 5 ? "error" : item.Quantity <= 10 ? "warning" : "success"}
                           size="small"
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          {new Date(item.UpdateDateTime).toLocaleString()}
-                        </Typography>
+                        <Typography variant="body2">{new Date(item.UpdateDateTime).toLocaleString()}</Typography>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -318,7 +317,6 @@ function Inventory() {
             </Fade>
           )}
         </TableContainer>
-
         {/* Pagination */}
         {!loading && !error && (
           <TablePagination
@@ -332,21 +330,15 @@ function Inventory() {
           />
         )}
       </Paper>
-
       {/* Dialogs */}
-      <AddItemDialog
-        open={openAddItemDialog}
-        onClose={() => setOpenAddItemDialog(false)}
-        refreshData={refreshData}
-      />
-
+      <AddItemDialog open={openAddItemDialog} onClose={() => setOpenAddItemDialog(false)} refreshData={refreshData} />
       <AddInventoryDialog
         open={openAddInventoryDialog}
         onClose={() => setOpenAddInventoryDialog(false)}
         refreshData={refreshData}
       />
     </Box>
-  );
+  )
 }
 
-export default Inventory;
+export default Inventory

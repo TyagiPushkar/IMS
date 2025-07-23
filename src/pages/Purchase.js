@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+"use client"
+import { useState, useEffect } from "react"
 import {
   Box,
   Paper,
@@ -23,7 +24,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-} from "@mui/material";
+} from "@mui/material"
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -31,93 +32,91 @@ import {
   Category as CategoryIcon,
   Receipt as ReceiptIcon,
   Close as CloseIcon,
-} from "@mui/icons-material";
-import PurchaseItemDialog from "../components/PurchaseItemDialog";
+} from "@mui/icons-material"
+import PurchaseItemDialog from "../components/PurchaseItemDialog"
+import { useNavigate } from "react-router-dom" // Import useNavigate
 
 function Purchase() {
-  const [openDialog, setOpenDialog] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [purchaseData, setPurchaseData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [openImageDialog, setOpenImageDialog] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [openAddPurchaseDialog, setOpenAddPurchaseDialog] = useState(false);
-
-  const userObject = JSON.parse(localStorage.getItem("user"));
-  const officeId = userObject?.OfficeId;
+  const navigate = useNavigate() // Initialize useNavigate
+  const [openDialog, setOpenDialog] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [purchaseData, setPurchaseData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [openImageDialog, setOpenImageDialog] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [openAddPurchaseDialog, setOpenAddPurchaseDialog] = useState(false)
 
   const fetchPurchaseData = async () => {
+    setLoading(true)
+    setError("") // Clear previous errors
+
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!userObject || !sessionToken || !userObject.OfficeId) {
+      setError("Authentication required or Office ID not found. Please log in.")
+      setLoading(false)
+      navigate("/login") // Redirect to login if no session or OfficeId
+      return
+    }
+
     try {
-      const response = await fetch(
-        `https://namami-infotech.com/SatyaMicro/src/purchase/get_purchase.php?OfficeID=${officeId}`
-      );
-      const result = await response.json();
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_purchase.php", {
+        method: "POST", // Changed to POST
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+        }),
+      })
 
+      if (response.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
       if (result.success) {
-        const groupedData = result.data.reduce((acc, item) => {
-          const { InvoiceNumber, VendorName, VendorAddress, Invoice, Date, Items } = item;
-          const invoiceNumber = InvoiceNumber || "Unknown Invoice";
-
-          if (!acc[invoiceNumber]) {
-            acc[invoiceNumber] = {
-              InvoiceNumber: invoiceNumber,
-              VendorName: VendorName,
-              VendorAddress: VendorAddress,
-              Invoice: Invoice,
-              Date: Date,
-              Items: [],
-            };
-          }
-
-          Items.forEach(i => {
-            acc[invoiceNumber].Items.push({
-              Item: i.Item || "No Item",
-              Quantity: i.Quantity || 0,
-              Amount: i.Amount || 0,
-            });
-          });
-
-          return acc;
-        }, {});
-
-        setPurchaseData(Object.values(groupedData));
+        // The PHP already groups the data, so we can directly use it
+        setPurchaseData(result.data)
       } else {
-        setError(result.message);
+        setError(result.message || "Failed to fetch purchase data.")
       }
     } catch (err) {
-      setError("Failed to fetch purchase data.");
+      console.error("Fetch error:", err)
+      setError("An error occurred while fetching purchase data. Check console for details.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    if (officeId) {
-      fetchPurchaseData();
-    } else {
-      setError("OfficeId not found in localStorage.");
-      setLoading(false);
-    }
-  }, [officeId]);
+    fetchPurchaseData()
+  }, [])
 
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
+    setSearchTerm(event.target.value)
+  }
   const handleRowClick = (invoice) => {
-    setSelectedInvoice(invoice);
-    setOpenDialog(true);
-  };
-
-  const filteredPurchases = purchaseData.filter((purchase) =>
-    purchase?.InvoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    purchase?.VendorName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+    setSelectedInvoice(invoice)
+    setOpenDialog(true)
+  }
+  const filteredPurchases = purchaseData.filter(
+    (purchase) =>
+      purchase?.InvoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      purchase?.VendorName?.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
   return (
-    <Box sx={{ p: 0, maxWidth: '100%' }}>
+    <Box sx={{ p: 0, maxWidth: "100%" }}>
       {/* Header */}
       <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
@@ -127,11 +126,10 @@ function Purchase() {
           Manage and view all purchase invoices
         </Typography>
       </Paper>
-
       {/* Main Content */}
-      <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ overflow: "hidden" }}>
         {/* Toolbar */}
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
@@ -152,18 +150,13 @@ function Purchase() {
             </Grid>
             <Grid item xs={12} md={6}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setOpenAddPurchaseDialog(true)}
-                >
+                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddPurchaseDialog(true)}>
                   Add Purchase
                 </Button>
               </Stack>
             </Grid>
           </Grid>
         </Box>
-
         {/* Table */}
         <TableContainer>
           {loading ? (
@@ -191,7 +184,7 @@ function Purchase() {
                     <TableRow
                       key={purchase.InvoiceNumber || index}
                       hover
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                     >
                       <TableCell>
                         <Chip
@@ -214,30 +207,25 @@ function Purchase() {
                       <TableCell>
                         <Stack direction="row" spacing={1}>
                           <Tooltip title="View Invoice Image">
-                            <IconButton 
-                              size="small" 
-                              onClick={() => { 
-                                setSelectedImage(purchase.Invoice); 
-                                setOpenImageDialog(true); 
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setSelectedImage(purchase.Invoice)
+                                setOpenImageDialog(true)
                               }}
                             >
                               <ImageIcon color="primary" />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="View Items">
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleRowClick(purchase)}
-                            >
+                            <IconButton size="small" onClick={() => handleRowClick(purchase)}>
                               <CategoryIcon color="primary" />
                             </IconButton>
                           </Tooltip>
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          {purchase.Date}
-                        </Typography>
+                        <Typography variant="body2">{purchase.Date}</Typography>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -256,12 +244,11 @@ function Purchase() {
           )}
         </TableContainer>
       </Paper>
-
       {/* Invoice Items Dialog */}
-      <Dialog 
-        open={openDialog} 
-        onClose={() => setOpenDialog(false)} 
-        fullWidth 
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        fullWidth
         maxWidth="sm"
         PaperProps={{
           sx: {
@@ -296,8 +283,12 @@ function Purchase() {
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Item</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }} align="right">Qty</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }} align="right">Amount</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">
+                      Qty
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">
+                      Amount
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -328,13 +319,8 @@ function Purchase() {
           )}
         </DialogContent>
       </Dialog>
-
       {/* Image Dialog */}
-      <Dialog 
-        open={openImageDialog} 
-        onClose={() => setOpenImageDialog(false)}
-        maxWidth="md"
-      >
+      <Dialog open={openImageDialog} onClose={() => setOpenImageDialog(false)} maxWidth="md">
         <DialogTitle
           sx={{
             display: "flex",
@@ -357,22 +343,21 @@ function Purchase() {
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {selectedImage && (
-            <Box sx={{ maxWidth: '100%', maxHeight: '80vh', overflow: 'auto' }}>
-              <img 
-                src={selectedImage} 
-                alt="Invoice" 
-                style={{ 
-                  width: '100%', 
-                  height: 'auto',
+            <Box sx={{ maxWidth: "100%", maxHeight: "80vh", overflow: "auto" }}>
+              <img
+                src={selectedImage || "/placeholder.svg"}
+                alt="Invoice"
+                style={{
+                  width: "100%",
+                  height: "auto",
                   borderRadius: 4,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                }} 
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                }}
               />
             </Box>
           )}
         </DialogContent>
       </Dialog>
-
       {/* Add Purchase Dialog */}
       <PurchaseItemDialog
         open={openAddPurchaseDialog}
@@ -380,7 +365,7 @@ function Purchase() {
         refreshPurchases={fetchPurchaseData}
       />
     </Box>
-  );
+  )
 }
 
-export default Purchase;
+export default Purchase

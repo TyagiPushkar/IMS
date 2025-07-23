@@ -1,5 +1,4 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import {
   Box,
@@ -26,17 +25,14 @@ import {
   Avatar,
   Stack,
 } from "@mui/material"
-import {
-  Search,
-  Add,
-  LocalShipping,
-  FilterList,
-  Refresh,
-} from "@mui/icons-material"
-import CheckIcon from '@mui/icons-material/Check';
-import TransferItemDialog from "../components/TransferItemDialog";
+import { Search, Add, LocalShipping, FilterList, Refresh } from "@mui/icons-material"
+import CheckIcon from "@mui/icons-material/Check"
+import TransferItemDialog from "../components/TransferItemDialog"
+import { useNavigate } from "react-router-dom" // Import useNavigate
+
 const Transfer = () => {
   const theme = useTheme()
+  const navigate = useNavigate() // Initialize useNavigate
   const [openAddItemDialog, setOpenAddItemDialog] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [transferData, setTransferData] = useState([])
@@ -46,51 +42,103 @@ const Transfer = () => {
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchTransferData = async () => {
+    setRefreshing(true)
+    setError("") // Clear previous errors
+
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!userObject || !sessionToken) {
+      setError("Authentication required. Please log in.")
+      setRefreshing(false)
+      navigate("/login") // Redirect to login if no session
+      return
+    }
+
     try {
-      setRefreshing(true);
-      const userObject = JSON.parse(localStorage.getItem("user"));
-      const role = userObject?.Role;
-      const OfficeId = userObject?.OfficeId;
-  
-      // Debug: Log the query params
-      console.log("Role:", role);
-      console.log("OfficeId:", OfficeId);
-  
-      const response = await fetch(
-        `https://namami-infotech.com/SatyaMicro/src/transfer/get_stock_transfer.php?OfficeId=${OfficeId}`
-      );
-      
-      // Debug: Log the raw response
-      console.log("Raw response:", response);
-      
-      const result = await response.json();
-      console.log("API response:", result); // Debug: Log the parsed response
-  
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/transfer/get_stock_transfer.php", {
+        method: "POST", // Changed to POST
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+          role: userObject.Role, // Send user role for server-side filtering
+          // You can add other filters here if needed for server-side filtering
+          // e.g., BatchId: searchTerm, Status: someStatusFilter
+        }),
+      })
+
+      if (response.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
+      console.log("API response:", result) // Debug: Log the parsed response
+
       if (result.success) {
-        setTransferData(result.data);
+        setTransferData(result.data)
       } else {
-        setError(result.message || "Failed to fetch transfer data");
+        setError(result.message || "Failed to fetch transfer data")
       }
     } catch (err) {
-      console.error("Transfer fetch error:", err);
-      setError("Failed to fetch transfer data. Check console for details.");
+      console.error("Transfer fetch error:", err)
+      setError("Failed to fetch transfer data. Check console for details.")
     } finally {
-      setRefreshing(false);
+      setRefreshing(false)
     }
-  };
-  
+  }
+
   // Fetch office data for mapping office IDs to names
   const fetchOfficeData = async () => {
+    setError("") // Clear previous errors
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!userObject || !sessionToken || !userObject.OfficeId) {
+      setError("Authentication required to fetch office data. Please log in.")
+      setLoading(false)
+      navigate("/login")
+      return
+    }
+
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php")
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php", {
+        method: "POST", // Changed to POST
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId, // Send OfficeId as userId
+          sessionToken: sessionToken,
+        }),
+      })
+
+      if (response.status === 401) {
+        // Unauthorized, session invalid or expired
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
       const result = await response.json()
       if (result.success) {
         setOfficeData(result.data)
       } else {
-        setError(result.message)
+        setError(result.message || "Failed to fetch office data.")
       }
     } catch (err) {
-      setError("Failed to fetch office data.")
+      setError("Failed to fetch office data. Check console for details.")
       console.error("Office fetch error:", err)
     } finally {
       setLoading(false)
@@ -109,13 +157,11 @@ const Transfer = () => {
     const office = officeData.find((office) => office.ID === Number.parseInt(officeId))
     return office ? office.OfficeName : `Office ${officeId}`
   }
-
   // Helper function to get office code by ID
   const getOfficeCode = (officeId) => {
     const office = officeData.find((office) => office.ID === Number.parseInt(officeId))
     return office ? office.OfficeCode : ""
   }
-
   // Status color mapping
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -131,26 +177,18 @@ const Transfer = () => {
         return "default"
     }
   }
-
   const userObject = JSON.parse(localStorage.getItem("user"))
-const role = userObject?.Role
-const OfficeId = userObject?.OfficeId
+  const role = userObject?.Role
+  const OfficeId = userObject?.OfficeId
 
-const filteredTransfers = transferData
-  .filter((transfer) => {
-    if (role !== "HO") {
-      return transfer.FromOfficeID === OfficeId || transfer.ToOfficeID === OfficeId
-    }
-    return true // HO sees all
-  })
-  .filter((transfer) => {
-    // Then apply search
+  // Client-side filtering for search term (server handles role/office filtering)
+  const filteredTransfers = transferData.filter((transfer) => {
+    // Apply search
     const fromOfficeName = getOfficeName(transfer.FromOfficeID).toLowerCase()
     const toOfficeName = getOfficeName(transfer.ToOfficeID).toLowerCase()
     const batchId = transfer.BatchId?.toLowerCase() || ""
     const status = transfer.Status?.toLowerCase() || ""
     const searchLower = searchTerm.toLowerCase()
-
     return (
       fromOfficeName.includes(searchLower) ||
       toOfficeName.includes(searchLower) ||
@@ -167,26 +205,24 @@ const filteredTransfers = transferData
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ BatchId: batchId }),
-      });
-  
-      const result = await response.json();
+      })
+
+      const result = await response.json()
       if (result.success) {
-        alert("Stock marked as Delivered!");
-        fetchTransferData(); // refresh the data
+        alert("Stock marked as Delivered!")
+        fetchTransferData() // refresh the data
       } else {
-        alert(result.message || "Failed to mark as delivered.");
+        alert(result.message || "Failed to mark as delivered.")
       }
     } catch (error) {
-      console.error("Accept transfer error:", error);
-      alert("Something went wrong while accepting transfer.");
+      console.error("Accept transfer error:", error)
+      alert("Something went wrong while accepting transfer.")
     }
-  };
-  
+  }
 
   const handleRefresh = () => {
     fetchTransferData()
   }
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -194,7 +230,6 @@ const filteredTransfers = transferData
       </Box>
     )
   }
-
   return (
     <Box sx={{ p: 0, minHeight: "100vh" }}>
       {/* Header */}
@@ -217,10 +252,7 @@ const filteredTransfers = transferData
           </Box>
         </CardContent>
       </Card>
-
       {/* Stats Cards */}
-      
-
       {/* Main Content */}
       <Card>
         <CardContent>
@@ -266,14 +298,12 @@ const filteredTransfers = transferData
               New Transfer
             </Button>
           </Box>
-
           {/* Error Display */}
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
           )}
-
           {/* Transfer Table */}
           <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
             <Table>
@@ -382,20 +412,21 @@ const filteredTransfers = transferData
                         </Typography>
                       </TableCell>
                       <TableCell>
-  <Tooltip title="Mark as Delivered">
-    <span>
-      <IconButton
-        size="small"
-        color="success"
-        onClick={() => handleAcceptTransfer(transfer.BatchId)}
-        disabled={transfer.Status?.toLowerCase() === "delivered"}
-      >
-        <CheckIcon />
-      </IconButton>
-    </span>
-  </Tooltip>
-</TableCell>
-
+                        {" "}
+                        <Tooltip title="Mark as Delivered">
+                          <span>
+                            {" "}
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => handleAcceptTransfer(transfer.BatchId)}
+                              disabled={transfer.Status?.toLowerCase() === "delivered"}
+                            >
+                              <CheckIcon />
+                            </IconButton>{" "}
+                          </span>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -404,7 +435,6 @@ const filteredTransfers = transferData
           </TableContainer>
         </CardContent>
       </Card>
-
       {/* Transfer Dialog */}
       <TransferItemDialog
         open={openAddItemDialog}
