@@ -18,7 +18,7 @@ export default function Login() {
   // Fetch CAPTCHA from server
   const fetchCaptcha = async () => {
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/captcha.php", {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/captcha.php", {
         credentials: 'include' // Important for session cookies
       })
       const data = await response.json()
