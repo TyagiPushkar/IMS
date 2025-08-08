@@ -15,20 +15,27 @@ export default function Login() {
   const [captchaText, setCaptchaText] = useState("")
   const [captchaError, setCaptchaError] = useState("")
 
-  // Generate random CAPTCHA text
-  const generateCaptcha = () => {
-    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#%$&*"
-    let captcha = ""
-    for (let i = 0; i < 6; i++) {
-      captcha += chars.charAt(Math.floor(Math.random() * chars.length))
+  // Fetch CAPTCHA from server
+  const fetchCaptcha = async () => {
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/captcha.php", {
+        credentials: 'include' // Important for session cookies
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCaptchaText(data.captcha)
+        setCaptchaError("")
+      } else {
+        throw new Error("Failed to load CAPTCHA")
+      }
+    } catch (err) {
+      setCaptchaError("Failed to load CAPTCHA. Please refresh the page.")
     }
-    setCaptchaText(captcha)
-    setCaptchaError("")
   }
 
-  // Generate CAPTCHA on component mount
+  // Load CAPTCHA on component mount
   useEffect(() => {
-    generateCaptcha()
+    fetchCaptcha()
   }, [])
 
   const handleInputChange = (e) => {
@@ -41,23 +48,17 @@ export default function Login() {
     setError("")
     setCaptchaError("")
 
-    // Validate CAPTCHA first
-    if (form.captchaInput !== captchaText) {
-      setCaptchaError("CAPTCHA verification failed. Please try again.")
-      generateCaptcha() // Generate new CAPTCHA on failure
-      setLoading(false)
-      return
-    }
-
     try {
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/login.php", {
         method: "POST",
+        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           AdminMail: form.AdminMail,
           Password: form.Password,
+          captchaInput: form.captchaInput
         }),
       })
       const result = await response.json()
@@ -67,12 +68,12 @@ export default function Login() {
         localStorage.setItem("sessionToken", result.data.sessionToken)
         navigate("/dashboard")
       } else {
-        setError(result.message || "Invalid login credentials")
-        generateCaptcha() // Generate new CAPTCHA on login failure
+        setError(result.message || "Login failed")
+        fetchCaptcha() // Get new CAPTCHA on failure
       }
     } catch (err) {
-      setError("An error occurred. Please try again.")
-      generateCaptcha() // Generate new CAPTCHA on error
+      setError("Network error. Please try again.")
+      fetchCaptcha()
     } finally {
       setLoading(false)
     }
@@ -135,8 +136,9 @@ export default function Login() {
                 </label>
                 <button
                   type="button"
-                  onClick={generateCaptcha}
+                  onClick={fetchCaptcha}
                   className="text-xs text-indigo-600 hover:text-indigo-500"
+                  disabled={loading}
                 >
                   Refresh CAPTCHA
                 </button>
@@ -144,7 +146,7 @@ export default function Login() {
               <div className="flex items-center space-x-4">
                 <div className="flex-1 bg-gray-100 p-2 rounded-md text-center font-mono text-lg tracking-widest select-none relative">
                   <div className="absolute inset-0 backdrop-blur-[1px] bg-white/30"></div>
-                  <span className="relative z-10">{captchaText}</span>
+                  <span className="relative z-10">{captchaText || "Loading..."}</span>
                 </div>
                 <input
                   id="captchaInput"
@@ -165,9 +167,17 @@ export default function Login() {
             <button
               type="submit"
               className="group relative flex w-full justify-center rounded-md bg-indigo-600 py-2 px-3 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              disabled={loading}
+              disabled={loading || !captchaText}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Signing in...
+                </>
+              ) : "Sign in"}
             </button>
           </div>
         </form>
