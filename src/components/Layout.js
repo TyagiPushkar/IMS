@@ -59,8 +59,8 @@ const Layout = () => {
   const menuItems = [
     { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
     { to: "/inventory", icon: <InventoryIcon />, text: "Inventory", badge: null },
-    role === "HO" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
-    role === "HO" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
+    role === "ADHMOISUNPER" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
+    role === "ADHMOISUNPER" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
     { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
     { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
     { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item", badge: null },

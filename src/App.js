@@ -18,7 +18,7 @@ import Unauthorized from "./pages/Unauthorized"
 const ROLES = {
   ADMIN: "Admin",
   SUPER_ADMIN: "SuperAdmin",
-  HO: "HO",
+  HO: "ADHMOISUNPER",
 }
 
 // Session timeout in milliseconds (10 minutes)
