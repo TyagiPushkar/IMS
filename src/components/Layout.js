@@ -37,7 +37,7 @@ const collapsedDrawerWidth = 70
 
 const Layout = () => {
   const userObject = JSON.parse(localStorage.getItem("user"))
-  const role = userObject?.Role
+  const role = userObject?.YUPTRED
   const theme = useTheme()
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem("user")) || {

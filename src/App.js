@@ -51,7 +51,7 @@ const isAuthenticated = async () => {
 const getUserRole = () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"))
-    return user?.Role || null
+    return user?.YUPTRED || null
   } catch (error) {
     console.error("Error parsing user from localStorage:", error)
     return null

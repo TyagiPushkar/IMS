@@ -43,7 +43,7 @@ const Dashboard = () => {
   const [officesLoading, setOfficesLoading] = useState(false)
 
   const userObject = JSON.parse(localStorage.getItem("user"))
-  const role = userObject?.Role
+  const role = userObject?.YUPTRED
   
   // Memoize the selected office IDs to prevent unnecessary re-renders of the dashboard data fetch
   const selectedOfficeIdsForFetch = useMemo(() => {
