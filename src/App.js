@@ -18,7 +18,7 @@ import Unauthorized from "./pages/Unauthorized"
 const ROLES = {
   ADMIN: "Admin",
   SUPER_ADMIN: "SuperAdmin",
-  HO: "ADHMOISUNPER",
+  HO: "HO",
 }
 
 // Session timeout in milliseconds (10 minutes)
@@ -51,7 +51,7 @@ const isAuthenticated = async () => {
 const getUserRole = () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"))
-    return user?.YUPTRED || null
+    return user?.Role || null
   } catch (error) {
     console.error("Error parsing user from localStorage:", error)
     return null
