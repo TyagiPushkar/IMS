@@ -260,7 +260,7 @@ const Dashboard = () => {
             </Grid>
           ))}
         </Grid>
-        {role === "ADHMOISUNPER" && (
+        {role === "HO" && (
           <Autocomplete
             multiple
             id="office-select"
