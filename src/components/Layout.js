@@ -25,7 +25,7 @@ import {
 import { Home, Menu as MenuIcon, Logout, ChevronLeft, ChevronRight } from "@mui/icons-material"
 import BusinessIcon from "@mui/icons-material/Business"
 import { NavLink, Outlet, useNavigate } from "react-router-dom"
-import logo from "../assets/logo.png" // Corrected path for the logo
+import logo from "../assets/logo.png"
 import PeopleIcon from "@mui/icons-material/People"
 import InventoryIcon from "@mui/icons-material/Inventory"
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
@@ -36,37 +36,71 @@ const drawerWidth = 280
 const collapsedDrawerWidth = 70
 
 const Layout = () => {
-  const userObject = JSON.parse(localStorage.getItem("user"))
-  const role = userObject?.Role
   const theme = useTheme()
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem("user")) || {
-    username: "Guest",
-    AdminName: "Guest User",
-    image: "",
-  }
   const [anchorEl, setAnchorEl] = useState(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [drawerCollapsed, setDrawerCollapsed] = useState(false)
   const [notificationAnchor, setNotificationAnchor] = useState(null)
+  const [userRole, setUserRole] = useState(null)
+  const [user, setUser] = useState({
+    username: "Guest",
+    AdminName: "Guest User",
+    image: "",
+    Role: null,
+    OfficeId: null
+  })
 
-  const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget)
-  const handleMenuClose = () => setAnchorEl(null)
-  const handleNotificationClose = () => setNotificationAnchor(null)
-  const handleDrawerToggle = () => setMobileOpen(!mobileOpen)
-  const handleDrawerCollapse = () => setDrawerCollapsed(!drawerCollapsed)
+  useEffect(() => {
+    const initializeUser = async () => {
+      const userData = JSON.parse(localStorage.getItem("user")) || {
+        username: "Guest",
+        AdminName: "Guest User",
+        image: "",
+        Role: null,
+        OfficeId: null
+      }
+      setUser(userData)
+      await fetchUserRole()
+      await verifySession()
+    }
+    initializeUser()
+  }, [navigate])
 
-  const menuItems = [
-    { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
-    { to: "/inventory", icon: <InventoryIcon />, text: "Inventory", badge: null },
-    role === "HO" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
-    role === "HO" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
-    { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
-    { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
-    { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item", badge: null },
-  ].filter(Boolean) // Filter out false values if role condition is not met
+  const fetchUserRole = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
 
- useEffect(() => {
+    if (!user || !sessionToken) {
+      setUserRole(null)
+      return
+    }
+
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.OfficeCode,
+          sessionToken
+        }),
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setUserRole(result.role)
+        // Update user object with the role from API
+        setUser(prev => ({
+          ...prev,
+          Role: result.role
+        }))
+      }
+    } catch (error) {
+      console.error("Error fetching role:", error)
+      setUserRole(null)
+    }
+  }
+
   const verifySession = async () => {
     const user = JSON.parse(localStorage.getItem("user"))
     const sessionToken = localStorage.getItem("sessionToken")
@@ -76,6 +110,7 @@ const Layout = () => {
       navigate("/login")
       return
     }
+    
     try {
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
         method: "POST",
@@ -83,7 +118,7 @@ const Layout = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: user.OfficeId, // <--- This line is key!
+          userId: user.OfficeId,
           sessionToken,
         }),
       })
@@ -100,10 +135,51 @@ const Layout = () => {
       navigate("/login")
     }
   }
-  // ... rest of the useEffect
-}, [navigate])
 
-  const drawerContent = (
+  const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget)
+  const handleMenuClose = () => setAnchorEl(null)
+  const handleNotificationClose = () => setNotificationAnchor(null)
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen)
+  const handleDrawerCollapse = () => setDrawerCollapsed(!drawerCollapsed)
+
+  const menuItems = [
+    { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
+    { to: "/inventory", icon: <InventoryIcon />, text: "Inventory", badge: null },
+    userRole === "HO" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
+    userRole === "HO" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
+    { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
+    { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
+    { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item", badge: null },
+  ].filter(Boolean)
+
+  const handleLogout = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"))
+      const sessionToken = localStorage.getItem("sessionToken")
+
+      if (user && sessionToken) {
+        await fetch("https://namami-infotech.com/SatyaMicro/src/auth/logout.php", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user.OfficeId,
+            sessionToken,
+          }),
+        })
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      localStorage.removeItem("user")
+      localStorage.removeItem("sessionToken")
+      localStorage.removeItem("lastActivity")
+      navigate("/login")
+    }
+  }
+
+    const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Drawer Header */}
       <Box
@@ -256,34 +332,6 @@ const Layout = () => {
     </Box>
   )
 
-  const handleLogout = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"))
-      const sessionToken = localStorage.getItem("sessionToken")
-
-      if (user && sessionToken) {
-        await fetch("https://namami-infotech.com/SatyaMicro/src/auth/logout.php", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: user.OfficeId,
-            sessionToken,
-          }),
-        })
-      }
-    } catch (error) {
-      console.error("Logout error:", error)
-    } finally {
-      // Clear local storage and redirect
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      localStorage.removeItem("lastActivity") // Clear last activity on logout
-      navigate("/login")
-    }
-  }
-
   return (
     <Box sx={{ display: "flex", overflowX: "hidden" }}>
       <CssBaseline />
@@ -293,7 +341,7 @@ const Layout = () => {
         elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          background: "#000000", // Changed to black
+          background: "#000000",
           backdropFilter: "blur(10px)",
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         }}
@@ -442,7 +490,7 @@ const Layout = () => {
           Logout
         </MenuItem>
       </Menu>
-      {/* Notification Menu (kept for completeness, though not fully implemented in original) */}
+      {/* Notification Menu */}
       <Menu
         anchorEl={notificationAnchor}
         open={Boolean(notificationAnchor)}
@@ -503,7 +551,7 @@ const Layout = () => {
         }}
       >
         <Toolbar />
-        <Outlet /> {/* This replaces {children} */}
+        <Outlet />
       </Box>
     </Box>
   )

@@ -65,7 +65,7 @@ const App = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.OfficeId,
+          userId: user.OfficeCode,
           sessionToken
         }),
       })
