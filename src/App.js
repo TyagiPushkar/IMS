@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react" // Import useState
+import { useEffect, useState } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom"
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
@@ -24,78 +24,107 @@ const ROLES = {
 // Session timeout in milliseconds (10 minutes)
 const SESSION_TIMEOUT = 10 * 60 * 1000
 
-const isAuthenticated = async () => {
-  const user = localStorage.getItem("user")
-  const sessionToken = localStorage.getItem("sessionToken")
-  if (!user || !sessionToken) return false
+const App = () => {
+  const [userRole, setUserRole] = useState(null)
 
-  try {
-    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: JSON.parse(user).OfficeId,
-        sessionToken,
-      }),
-    })
-    const result = await response.json()
-    return result.valid
-  } catch (error) {
-    console.error("Authentication check failed:", error)
-    return false
-  }
-}
+  const isAuthenticated = async () => {
+    const user = localStorage.getItem("user")
+    const sessionToken = localStorage.getItem("sessionToken")
+    if (!user || !sessionToken) return false
 
-const getUserRole = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user"))
-    return user?.Role || null
-  } catch (error) {
-    console.error("Error parsing user from localStorage:", error)
-    return null
-  }
-}
-
-const RequireAuth = ({ allowedRoles, children }) => {
-  const location = useLocation()
-  const userRole = getUserRole()
-
-  if (!localStorage.getItem("user") || !localStorage.getItem("sessionToken")) {
-    return <Navigate to="/login" replace state={{ from: location }} />
-  }
-
-  if (userRole && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/unauthorized" replace state={{ from: location }} />
-  }
-
-  return children
-}
-
-// New component to handle root path redirection
-const HomeRedirect = () => {
-  const [authChecked, setAuthChecked] = useState(false)
-  const [authenticated, setAuthenticated] = useState(false)
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const authStatus = await isAuthenticated()
-      setAuthenticated(authStatus)
-      setAuthChecked(true)
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: JSON.parse(user).OfficeId,
+          sessionToken,
+        }),
+      })
+      const result = await response.json()
+      return result.valid
+    } catch (error) {
+      console.error("Authentication check failed:", error)
+      return false
     }
-    checkAuth()
-  }, [])
-
-  if (!authChecked) {
-    // Optionally render a loading spinner here
-    return null
   }
 
-  return authenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-}
+  const fetchUserRole = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
 
-function App() {
+    if (!user || !sessionToken) {
+      setUserRole(null)
+      return
+    }
+
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.OfficeId,
+          sessionToken
+        }),
+      })
+
+      const result = await response.json()
+      setUserRole(result.role)
+    } catch (error) {
+      console.error("Error fetching role:", error)
+      setUserRole(null)
+    }
+  }
+
+  const RequireAuth = ({ allowedRoles, children }) => {
+    const location = useLocation()
+    const [isAuthChecked, setIsAuthChecked] = useState(false)
+
+    useEffect(() => {
+      const checkAuth = async () => {
+        await fetchUserRole()
+        setIsAuthChecked(true)
+      }
+      checkAuth()
+    }, [])
+
+    if (!isAuthChecked) {
+      return null // or loading spinner
+    }
+
+    if (!localStorage.getItem("user") || !localStorage.getItem("sessionToken")) {
+      return <Navigate to="/login" replace state={{ from: location }} />
+    }
+
+    if (userRole && !allowedRoles.includes(userRole)) {
+      return <Navigate to="/unauthorized" replace state={{ from: location }} />
+    }
+
+    return children
+  }
+
+  const HomeRedirect = () => {
+    const [authChecked, setAuthChecked] = useState(false)
+    const [authenticated, setAuthenticated] = useState(false)
+
+    useEffect(() => {
+      const checkAuth = async () => {
+        const authStatus = await isAuthenticated()
+        setAuthenticated(authStatus)
+        setAuthChecked(true)
+      }
+      checkAuth()
+    }, [])
+
+    if (!authChecked) {
+      return null
+    }
+
+    return authenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+  }
+
   useEffect(() => {
     // Set up activity trackers
     const updateLastActivity = () => {
