@@ -55,7 +55,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [fieldErrors, setFieldErrors] = useState({})
-
+  const [vendorsLoading, setVendorsLoading] = useState(false)
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"))
     if (user) {
@@ -123,49 +123,57 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     }
   }
 
-  const fetchVendors = async () => {
-    setError("")
+ const fetchVendors = async () => {
+setError("")
+    setVendorsLoading(true)
     const userObject = JSON.parse(localStorage.getItem("user"))
     const sessionToken = localStorage.getItem("sessionToken")
 
     if (!userObject || !sessionToken || !userObject.OfficeId) {
       setError("Authentication required to fetch vendor data. Please log in.")
+      setVendorsLoading(false)
       navigate("/login")
       return
     }
+  try {
+    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_vendor.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: userObject.OfficeId,
+        sessionToken: sessionToken,
+      }),
+    });
 
-    try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_vendor.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: userObject.OfficeId,
-          sessionToken: sessionToken,
-        }),
-      })
-
-      if (response.status === 401) {
-        localStorage.removeItem("user")
-        localStorage.removeItem("sessionToken")
-        localStorage.removeItem("lastActivity")
-        setError("Session expired or invalid. Please log in again.")
-        navigate("/login")
-        return
+    const result = await response.json();
+    
+    if (result.success) {
+      // Validate vendor data structure
+      if (!Array.isArray(result.data)) {
+        throw new Error("Vendors data is not an array");
       }
-
-      const result = await response.json()
-      if (result.success) {
-        setVendorsList(result.data)
-      } else {
-        setError(result.message || "Failed to fetch vendors.")
+      
+      const validVendors = result.data.filter(vendor => 
+        vendor && typeof vendor === 'object' && 'Name' in vendor
+      );
+      
+      setVendorsList(validVendors);
+      
+      if (validVendors.length !== result.data.length) {
+        console.warn("Some vendor entries were invalid and filtered out");
       }
-    } catch (err) {
-      console.error("Failed to fetch vendors:", err)
-      setError("An error occurred while fetching vendors.")
+    } else {
+      setError(result.message || "Failed to fetch vendors.");
     }
+  } catch (err) {
+    console.error("Failed to fetch vendors:", err);
+    setError("An error occurred while fetching vendors.");
+  } finally {
+    setVendorsLoading(false);
   }
+}
 
   const validateField = (name, value) => {
     if (!value) return "This field is required"
