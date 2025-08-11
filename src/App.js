@@ -14,7 +14,25 @@ import Issue from "./pages/Issue"
 import Purchase from "./pages/Purchase"
 import Transfer from "./pages/Transfer"
 import Unauthorized from "./pages/Unauthorized"
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+import CssBaseline from '@mui/material/CssBaseline'
 
+
+
+const theme = createTheme({
+  typography: {
+    fontSize: 14, // Base font size
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none', // Disable auto-uppercase in buttons
+        },
+      },
+    },
+  },
+})
 const ROLES = {
   ADMIN: "Admin",
   SUPER_ADMIN: "SuperAdmin",
@@ -184,6 +202,8 @@ const App = () => {
   }, [])
 
   return (
+     <ThemeProvider theme={theme}>
+      <CssBaseline /> 
     <Router>
       <Routes>
         {/* Public Routes */}
@@ -254,7 +274,8 @@ const App = () => {
           <Route path="*" element={<NoPageFound />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+      </ThemeProvider>
   )
 }
 
