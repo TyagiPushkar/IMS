@@ -348,30 +348,42 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
           </Grid>
           <Grid item xs={12} md={6}>
             <Autocomplete
-              value={form.VendorName}
-              onChange={handleVendorChange}
-              options={vendorsList.map(vendor => vendor.Name)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Vendor Name"
-                  required
-                  error={Boolean(fieldErrors.VendorName)}
-                  helperText={fieldErrors.VendorName}
-                  InputProps={{
-                    ...params.InputProps,
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <BusinessIcon color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              )}
-              freeSolo={false}
-              fullWidth
-              disabled={loading}
-            />
+  value={form.VendorName}
+  onChange={handleVendorChange}
+  options={vendorsList
+    .filter(vendor => vendor && vendor.Name) // Filter out undefined/null vendors and those without Name
+    .map(vendor => vendor.Name) // Map to just the names
+  }
+  loading={vendorsLoading}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Vendor Name"
+      required
+      error={Boolean(fieldErrors.VendorName)}
+      helperText={fieldErrors.VendorName}
+      InputProps={{
+        ...params.InputProps,
+        startAdornment: (
+          <InputAdornment position="start">
+            <BusinessIcon color="action" />
+          </InputAdornment>
+        ),
+        endAdornment: (
+          <React.Fragment>
+            {vendorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+            {params.InputProps.endAdornment}
+          </React.Fragment>
+        ),
+      }}
+    />
+  )}
+  freeSolo={false}
+  fullWidth
+  disabled={loading || vendorsLoading}
+  getOptionLabel={(option) => option || ''} // Handle cases where option might be undefined
+  isOptionEqualToValue={(option, value) => option === value}
+/>
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
