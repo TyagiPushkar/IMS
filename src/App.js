@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react" // Import useState
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom"
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
@@ -14,25 +14,7 @@ import Issue from "./pages/Issue"
 import Purchase from "./pages/Purchase"
 import Transfer from "./pages/Transfer"
 import Unauthorized from "./pages/Unauthorized"
-import { ThemeProvider, createTheme } from '@mui/material/styles'
-import CssBaseline from '@mui/material/CssBaseline'
 
-
-
-const theme = createTheme({
-  typography: {
-    fontSize: 14, // Base font size
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none', // Disable auto-uppercase in buttons
-        },
-      },
-    },
-  },
-})
 const ROLES = {
   ADMIN: "Admin",
   SUPER_ADMIN: "SuperAdmin",
@@ -42,107 +24,78 @@ const ROLES = {
 // Session timeout in milliseconds (10 minutes)
 const SESSION_TIMEOUT = 10 * 60 * 1000
 
-const App = () => {
-  const [userRole, setUserRole] = useState(null)
+const isAuthenticated = async () => {
+  const user = localStorage.getItem("user")
+  const sessionToken = localStorage.getItem("sessionToken")
+  if (!user || !sessionToken) return false
 
-  const isAuthenticated = async () => {
-    const user = localStorage.getItem("user")
-    const sessionToken = localStorage.getItem("sessionToken")
-    if (!user || !sessionToken) return false
-
-    try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: JSON.parse(user).OfficeId,
-          sessionToken,
-        }),
-      })
-      const result = await response.json()
-      return result.valid
-    } catch (error) {
-      console.error("Authentication check failed:", error)
-      return false
-    }
+  try {
+    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: JSON.parse(user).OfficeId,
+        sessionToken,
+      }),
+    })
+    const result = await response.json()
+    return result.valid
+  } catch (error) {
+    console.error("Authentication check failed:", error)
+    return false
   }
+}
 
-  const fetchUserRole = async () => {
+const getUserRole = () => {
+  try {
     const user = JSON.parse(localStorage.getItem("user"))
-    const sessionToken = localStorage.getItem("sessionToken")
+    return user?.Role || null
+  } catch (error) {
+    console.error("Error parsing user from localStorage:", error)
+    return null
+  }
+}
 
-    if (!user || !sessionToken) {
-      setUserRole(null)
-      return
-    }
+const RequireAuth = ({ allowedRoles, children }) => {
+  const location = useLocation()
+  const userRole = getUserRole()
 
-    try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.OfficeId,
-          sessionToken
-        }),
-      })
-
-      const result = await response.json()
-      setUserRole(result.role)
-    } catch (error) {
-      console.error("Error fetching role:", error)
-      setUserRole(null)
-    }
+  if (!localStorage.getItem("user") || !localStorage.getItem("sessionToken")) {
+    return <Navigate to="/login" replace state={{ from: location }} />
   }
 
-  const RequireAuth = ({ allowedRoles, children }) => {
-    const location = useLocation()
-    const [isAuthChecked, setIsAuthChecked] = useState(false)
-
-    useEffect(() => {
-      const checkAuth = async () => {
-        await fetchUserRole()
-        setIsAuthChecked(true)
-      }
-      checkAuth()
-    }, [])
-
-    if (!isAuthChecked) {
-      return null // or loading spinner
-    }
-
-    if (!localStorage.getItem("user") || !localStorage.getItem("sessionToken")) {
-      return <Navigate to="/login" replace state={{ from: location }} />
-    }
-
-    if (userRole && !allowedRoles.includes(userRole)) {
-      return <Navigate to="/unauthorized" replace state={{ from: location }} />
-    }
-
-    return children
+  if (userRole && !allowedRoles.includes(userRole)) {
+    return <Navigate to="/unauthorized" replace state={{ from: location }} />
   }
 
-  const HomeRedirect = () => {
-    const [authChecked, setAuthChecked] = useState(false)
-    const [authenticated, setAuthenticated] = useState(false)
+  return children
+}
 
-    useEffect(() => {
-      const checkAuth = async () => {
-        const authStatus = await isAuthenticated()
-        setAuthenticated(authStatus)
-        setAuthChecked(true)
-      }
-      checkAuth()
-    }, [])
+// New component to handle root path redirection
+const HomeRedirect = () => {
+  const [authChecked, setAuthChecked] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
 
-    if (!authChecked) {
-      return null
+  useEffect(() => {
+    const checkAuth = async () => {
+      const authStatus = await isAuthenticated()
+      setAuthenticated(authStatus)
+      setAuthChecked(true)
     }
+    checkAuth()
+  }, [])
 
-    return authenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+  if (!authChecked) {
+    // Optionally render a loading spinner here
+    return null
   }
 
+  return authenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+}
+
+function App() {
   useEffect(() => {
     // Set up activity trackers
     const updateLastActivity = () => {
@@ -202,8 +155,6 @@ const App = () => {
   }, [])
 
   return (
-     <ThemeProvider theme={theme}>
-      <CssBaseline /> 
     <Router>
       <Routes>
         {/* Public Routes */}
@@ -274,8 +225,7 @@ const App = () => {
           <Route path="*" element={<NoPageFound />} />
         </Route>
       </Routes>
-      </Router>
-      </ThemeProvider>
+    </Router>
   )
 }
 
