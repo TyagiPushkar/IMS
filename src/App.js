@@ -57,21 +57,70 @@ const getUserRole = () => {
     return null
   }
 }
+const fetchUserRoleFromAPI = async (userId, sessionToken) => {
+  try {
+    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId,
+        sessionToken
+      }),
+      credentials: "include" // If you're using cookies
+    });
+
+    const result = await response.json();
+    if (result.success && result.role) {
+      return result.role;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching role:", error);
+    return null;
+  }
+};
 
 const RequireAuth = ({ allowedRoles, children }) => {
-  const location = useLocation()
-  const userRole = getUserRole()
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    const checkAuthAndRole = async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const sessionToken = localStorage.getItem("sessionToken");
+
+      if (!user || !sessionToken) {
+        setLoading(false);
+        return;
+      }
+
+      // Get real role from backend
+      const role = await fetchUserRoleFromAPI(user.OfficeId, sessionToken);
+      setUserRole(role);
+      setLoading(false);
+    };
+
+    checkAuthAndRole();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>; // Or a spinner
+  }
 
   if (!localStorage.getItem("user") || !localStorage.getItem("sessionToken")) {
-    return <Navigate to="/login" replace state={{ from: location }} />
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (userRole && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/unauthorized" replace state={{ from: location }} />
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    return <Navigate to="/unauthorized" replace state={{ from: location }} />;
   }
 
-  return children
-}
+  return children;
+};
+
 
 // New component to handle root path redirection
 const HomeRedirect = () => {

@@ -25,7 +25,7 @@ import {
 import { Home, Menu as MenuIcon, Logout, ChevronLeft, ChevronRight } from "@mui/icons-material"
 import BusinessIcon from "@mui/icons-material/Business"
 import { NavLink, Outlet, useNavigate } from "react-router-dom"
-import logo from "../assets/logo.png" // Corrected path for the logo
+import logo from "../assets/logo.png"
 import PeopleIcon from "@mui/icons-material/People"
 import InventoryIcon from "@mui/icons-material/Inventory"
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
@@ -35,26 +35,99 @@ import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing"
 const drawerWidth = 280
 const collapsedDrawerWidth = 70
 
+const getUserRoleFromAPI = async () => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  const sessionToken = localStorage.getItem("sessionToken");
+
+  if (!user || !sessionToken) return null;
+
+  try {
+    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: user.OfficeId,
+        sessionToken
+      }),
+    });
+
+    const result = await response.json();
+    return result?.role || null;
+  } catch (error) {
+    console.error("Error fetching role:", error);
+    return null;
+  }
+};
+
 const Layout = () => {
-  const userObject = JSON.parse(localStorage.getItem("user"))
-  const role = userObject?.Role
   const theme = useTheme()
   const navigate = useNavigate()
+  const [anchorEl, setAnchorEl] = useState(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [drawerCollapsed, setDrawerCollapsed] = useState(false)
+  const [notificationAnchor, setNotificationAnchor] = useState(null)
+  const [role, setRole] = useState(null)
+  const [loading, setLoading] = useState(true)
+
   const user = JSON.parse(localStorage.getItem("user")) || {
     username: "Guest",
     AdminName: "Guest User",
     image: "",
   }
-  const [anchorEl, setAnchorEl] = useState(null)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false)
-  const [notificationAnchor, setNotificationAnchor] = useState(null)
 
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
   const handleNotificationClose = () => setNotificationAnchor(null)
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen)
   const handleDrawerCollapse = () => setDrawerCollapsed(!drawerCollapsed)
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const userRole = await getUserRoleFromAPI()
+      setRole(userRole)
+      setLoading(false)
+    }
+
+    fetchUserRole()
+  }, [])
+
+  useEffect(() => {
+    const verifySession = async () => {
+      const user = JSON.parse(localStorage.getItem("user"))
+      const sessionToken = localStorage.getItem("sessionToken")
+      if (!user || !sessionToken) {
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        navigate("/login")
+        return
+      }
+      try {
+        const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user.OfficeId,
+            sessionToken,
+          }),
+        })
+        const result = await response.json()
+        if (!result.valid) {
+          localStorage.removeItem("user")
+          localStorage.removeItem("sessionToken")
+          navigate("/login")
+        }
+      } catch (error) {
+        console.error("Session verification error:", error)
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        navigate("/login")
+      }
+    }
+    
+    verifySession()
+  }, [navigate])
 
   const menuItems = [
     { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
@@ -64,44 +137,7 @@ const Layout = () => {
     { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
     { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
     { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item", badge: null },
-  ].filter(Boolean) // Filter out false values if role condition is not met
-
- useEffect(() => {
-  const verifySession = async () => {
-    const user = JSON.parse(localStorage.getItem("user"))
-    const sessionToken = localStorage.getItem("sessionToken")
-    if (!user || !sessionToken) {
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      navigate("/login")
-      return
-    }
-    try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.OfficeId, // <--- This line is key!
-          sessionToken,
-        }),
-      })
-      const result = await response.json()
-      if (!result.valid) {
-        localStorage.removeItem("user")
-        localStorage.removeItem("sessionToken")
-        navigate("/login")
-      }
-    } catch (error) {
-      console.error("Session verification error:", error)
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      navigate("/login")
-    }
-  }
-  // ... rest of the useEffect
-}, [navigate])
+  ].filter(Boolean)
 
   const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -247,7 +283,7 @@ const Layout = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {user.Role || "Guest User"}
+                {role || "Guest User"}
               </Typography>
             </Box>
           </Box>
@@ -276,32 +312,36 @@ const Layout = () => {
     } catch (error) {
       console.error("Logout error:", error)
     } finally {
-      // Clear local storage and redirect
       localStorage.removeItem("user")
       localStorage.removeItem("sessionToken")
-      localStorage.removeItem("lastActivity") // Clear last activity on logout
+      localStorage.removeItem("lastActivity")
       navigate("/login")
     }
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (
     <Box sx={{ display: "flex", overflowX: "hidden" }}>
       <CssBaseline />
-      {/* Enhanced AppBar */}
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          background: "#000000", // Changed to black
+          background: "#000000",
           backdropFilter: "blur(10px)",
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: 3 }}>
-          {/* Left side - Mobile Menu Button + Logo */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {/* Mobile Menu Button */}
             <IconButton
               edge="start"
               color="inherit"
@@ -316,7 +356,6 @@ const Layout = () => {
             >
               <MenuIcon />
             </IconButton>
-            {/* Logo - Always visible on left */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Box
                 component="img"
@@ -330,9 +369,7 @@ const Layout = () => {
               />
             </Box>
           </Box>
-          {/* Right side actions */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* User Profile */}
             <Box sx={{ display: "flex", alignItems: "center", ml: 1 }}>
               <Typography
                 variant="body2"
@@ -366,7 +403,6 @@ const Layout = () => {
           </Box>
         </Toolbar>
       </AppBar>
-      {/* Desktop Sidebar */}
       <Drawer
         variant="permanent"
         sx={{
@@ -393,7 +429,6 @@ const Layout = () => {
         <Toolbar />
         {drawerContent}
       </Drawer>
-      {/* Mobile Sidebar */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -413,7 +448,6 @@ const Layout = () => {
         <Toolbar />
         {drawerContent}
       </Drawer>
-      {/* Profile Menu */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -442,7 +476,6 @@ const Layout = () => {
           Logout
         </MenuItem>
       </Menu>
-      {/* Notification Menu (kept for completeness, though not fully implemented in original) */}
       <Menu
         anchorEl={notificationAnchor}
         open={Boolean(notificationAnchor)}
@@ -486,7 +519,6 @@ const Layout = () => {
           </Box>
         </MenuItem>
       </Menu>
-      {/* Main Content */}
       <Box
         component="main"
         sx={{
@@ -503,7 +535,7 @@ const Layout = () => {
         }}
       >
         <Toolbar />
-        <Outlet /> {/* This replaces {children} */}
+        <Outlet />
       </Box>
     </Box>
   )
