@@ -61,7 +61,6 @@ const Dashboard = () => {
       }
       setUser(userData)
       await fetchUserRole()
-      await verifySession()
     }
     initializeUser()
   }, [navigate])
