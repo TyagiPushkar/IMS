@@ -56,6 +56,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
   const [success, setSuccess] = useState("")
   const [fieldErrors, setFieldErrors] = useState({})
   const [vendorsLoading, setVendorsLoading] = useState(false)
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"))
     if (user) {
@@ -123,8 +124,8 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     }
   }
 
- const fetchVendors = async () => {
-setError("")
+  const fetchVendors = async () => {
+    setError("")
     setVendorsLoading(true)
     const userObject = JSON.parse(localStorage.getItem("user"))
     const sessionToken = localStorage.getItem("sessionToken")
@@ -135,45 +136,47 @@ setError("")
       navigate("/login")
       return
     }
-  try {
-    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_vendor.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: userObject.OfficeId,
-        sessionToken: sessionToken,
-      }),
-    });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      // Validate vendor data structure
-      if (!Array.isArray(result.data)) {
-        throw new Error("Vendors data is not an array");
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_vendor.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId,
+          sessionToken: sessionToken,
+        }),
+      })
+
+      const result = await response.json()
+      console.log("Vendors API response:", result) // Debug log
+
+      if (result.success) {
+        if (!Array.isArray(result.data)) {
+          throw new Error("Vendors data is not an array")
+        }
+        
+        const validVendors = result.data.filter(vendor => 
+          vendor && typeof vendor === 'object' && 'VendorName' in vendor
+        )
+        
+        console.log("Valid vendors:", validVendors) // Debug log
+        setVendorsList(validVendors)
+        
+        if (validVendors.length !== result.data.length) {
+          console.warn("Some vendor entries were invalid and filtered out")
+        }
+      } else {
+        setError(result.message || "Failed to fetch vendors.")
       }
-      
-      const validVendors = result.data.filter(vendor => 
-        vendor && typeof vendor === 'object' && 'Name' in vendor
-      );
-      
-      setVendorsList(validVendors);
-      
-      if (validVendors.length !== result.data.length) {
-        console.warn("Some vendor entries were invalid and filtered out");
-      }
-    } else {
-      setError(result.message || "Failed to fetch vendors.");
+    } catch (err) {
+      console.error("Failed to fetch vendors:", err)
+      setError("An error occurred while fetching vendors.")
+    } finally {
+      setVendorsLoading(false)
     }
-  } catch (err) {
-    console.error("Failed to fetch vendors:", err);
-    setError("An error occurred while fetching vendors.");
-  } finally {
-    setVendorsLoading(false);
   }
-}
 
   const validateField = (name, value) => {
     if (!value) return "This field is required"
@@ -211,11 +214,11 @@ setError("")
   }
 
   const handleVendorChange = (event, newValue) => {
-    const selectedVendor = vendorsList.find(vendor => vendor.Name === newValue)
+    const selectedVendor = vendorsList.find(vendor => vendor.VendorName === newValue)
     setForm({
       ...form,
       VendorName: newValue || "",
-      VendorAddress: selectedVendor ? selectedVendor.Address : ""
+      VendorAddress: selectedVendor ? selectedVendor.VendorAddress : ""
     })
     
     // Clear field errors
@@ -356,42 +359,39 @@ setError("")
           </Grid>
           <Grid item xs={12} md={6}>
             <Autocomplete
-  value={form.VendorName}
-  onChange={handleVendorChange}
-  options={vendorsList
-    .filter(vendor => vendor && vendor.Name) // Filter out undefined/null vendors and those without Name
-    .map(vendor => vendor.Name) // Map to just the names
-  }
-  loading={vendorsLoading}
-  renderInput={(params) => (
-    <TextField
-      {...params}
-      label="Vendor Name"
-      required
-      error={Boolean(fieldErrors.VendorName)}
-      helperText={fieldErrors.VendorName}
-      InputProps={{
-        ...params.InputProps,
-        startAdornment: (
-          <InputAdornment position="start">
-            <BusinessIcon color="action" />
-          </InputAdornment>
-        ),
-        endAdornment: (
-          <React.Fragment>
-            {vendorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
-            {params.InputProps.endAdornment}
-          </React.Fragment>
-        ),
-      }}
-    />
-  )}
-  freeSolo={false}
-  fullWidth
-  disabled={loading || vendorsLoading}
-  getOptionLabel={(option) => option || ''} // Handle cases where option might be undefined
-  isOptionEqualToValue={(option, value) => option === value}
-/>
+              value={form.VendorName}
+              onChange={handleVendorChange}
+              options={vendorsList.map(vendor => vendor.VendorName)}
+              loading={vendorsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Vendor Name"
+                  required
+                  error={Boolean(fieldErrors.VendorName)}
+                  helperText={fieldErrors.VendorName}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessIcon color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <React.Fragment>
+                        {vendorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </React.Fragment>
+                    ),
+                  }}
+                />
+              )}
+              freeSolo={false}
+              fullWidth
+              disabled={loading || vendorsLoading}
+              getOptionLabel={(option) => option || ''}
+              isOptionEqualToValue={(option, value) => option === value}
+            />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
