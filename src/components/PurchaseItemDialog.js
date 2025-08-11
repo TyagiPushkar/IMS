@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-
 import { useState, useEffect } from "react"
 import {
   Dialog,
@@ -36,10 +35,10 @@ import {
   Numbers as NumbersIcon,
   Paid as PaidIcon,
 } from "@mui/icons-material"
-import { useNavigate } from "react-router-dom" // Import useNavigate
+import { useNavigate } from "react-router-dom"
 
 const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
-  const navigate = useNavigate() // Initialize useNavigate
+  const navigate = useNavigate()
 
   const [form, setForm] = useState({
     VendorName: "",
@@ -51,6 +50,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     items: [{ Item: "", Quantity: "", Amount: "" }],
   })
   const [itemsList, setItemsList] = useState([])
+  const [vendorsList, setVendorsList] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -62,50 +62,47 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
       setForm((prev) => ({ ...prev, OfficeId: user.OfficeId }))
     }
     if (open) {
-      // Fetch items only when dialog opens
       fetchItems()
-      // Reset form and errors when dialog opens
+      fetchVendors()
       setForm({
         VendorName: "",
         VendorAddress: "",
         InvoiceNumber: "",
         Invoice: null,
         Date: new Date().toISOString().split("T")[0],
-        OfficeId: user?.OfficeId || "", // Ensure OfficeId is reset
+        OfficeId: user?.OfficeId || "",
         items: [{ Item: "", Quantity: "", Amount: "" }],
       })
       setError("")
       setSuccess("")
       setFieldErrors({})
     }
-  }, [open]) // Depend on 'open' to trigger fetch and reset
+  }, [open])
 
   const fetchItems = async () => {
-    setError("") // Clear previous errors
+    setError("")
     const userObject = JSON.parse(localStorage.getItem("user"))
     const sessionToken = localStorage.getItem("sessionToken")
 
     if (!userObject || !sessionToken || !userObject.OfficeId) {
       setError("Authentication required to fetch item data. Please log in.")
-      // Optionally redirect to login here if this dialog is not part of a protected route
       navigate("/login")
       return
     }
 
     try {
       const response = await fetch("https://namami-infotech.com/SatyaMicro/src/item/get_item.php", {
-        method: "POST", // Changed to POST
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: userObject.OfficeId, // Send OfficeId as userId
+          userId: userObject.OfficeId,
           sessionToken: sessionToken,
         }),
       })
 
       if (response.status === 401) {
-        // Unauthorized, session invalid or expired
         localStorage.removeItem("user")
         localStorage.removeItem("sessionToken")
         localStorage.removeItem("lastActivity")
@@ -126,6 +123,50 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     }
   }
 
+  const fetchVendors = async () => {
+    setError("")
+    const userObject = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!userObject || !sessionToken || !userObject.OfficeId) {
+      setError("Authentication required to fetch vendor data. Please log in.")
+      navigate("/login")
+      return
+    }
+
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/get_vendor.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userObject.OfficeId,
+          sessionToken: sessionToken,
+        }),
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem("user")
+        localStorage.removeItem("sessionToken")
+        localStorage.removeItem("lastActivity")
+        setError("Session expired or invalid. Please log in again.")
+        navigate("/login")
+        return
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setVendorsList(result.data)
+      } else {
+        setError(result.message || "Failed to fetch vendors.")
+      }
+    } catch (err) {
+      console.error("Failed to fetch vendors:", err)
+      setError("An error occurred while fetching vendors.")
+    }
+  }
+
   const validateField = (name, value) => {
     if (!value) return "This field is required"
     return ""
@@ -134,19 +175,16 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
   const validateForm = () => {
     const errors = {}
 
-    // Validate main form fields
     const mainFields = ["VendorName", "VendorAddress", "InvoiceNumber"]
     mainFields.forEach((field) => {
       const error = validateField(field, form[field])
       if (error) errors[field] = error
     })
 
-    // Validate invoice file
     if (!form.Invoice) {
       errors.Invoice = "Invoice image is required"
     }
 
-    // Validate items
     form.items.forEach((item, index) => {
       if (!item.Item) errors[`item-${index}-Item`] = "Item is required"
       if (!item.Quantity) errors[`item-${index}-Quantity`] = "Quantity is required"
@@ -164,11 +202,25 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     }
   }
 
+  const handleVendorChange = (event, newValue) => {
+    const selectedVendor = vendorsList.find(vendor => vendor.Name === newValue)
+    setForm({
+      ...form,
+      VendorName: newValue || "",
+      VendorAddress: selectedVendor ? selectedVendor.Address : ""
+    })
+    
+    // Clear field errors
+    const newErrors = { ...fieldErrors }
+    delete newErrors.VendorName
+    delete newErrors.VendorAddress
+    setFieldErrors(newErrors)
+  }
+
   const handleItemChange = (index, key, value) => {
     const updatedItems = [...form.items]
     updatedItems[index][key] = value
     setForm({ ...form, items: updatedItems })
-    // Clear field error when user types
     if (fieldErrors[`item-${index}-${key}`]) {
       const newErrors = { ...fieldErrors }
       delete newErrors[`item-${index}-${key}`]
@@ -295,21 +347,29 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
             <Divider sx={{ mb: 2 }} />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TextField
-              required
-              label="Vendor Name"
+            <Autocomplete
               value={form.VendorName}
-              onChange={(e) => setForm({ ...form, VendorName: e.target.value })}
+              onChange={handleVendorChange}
+              options={vendorsList.map(vendor => vendor.Name)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Vendor Name"
+                  required
+                  error={Boolean(fieldErrors.VendorName)}
+                  helperText={fieldErrors.VendorName}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+              freeSolo={false}
               fullWidth
-              error={Boolean(fieldErrors.VendorName)}
-              helperText={fieldErrors.VendorName}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <BusinessIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
               disabled={loading}
             />
           </Grid>
