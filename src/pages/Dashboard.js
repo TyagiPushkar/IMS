@@ -41,9 +41,65 @@ const Dashboard = () => {
   const [offices, setOffices] = useState([])
   const [selectedOffices, setSelectedOffices] = useState([])
   const [officesLoading, setOfficesLoading] = useState(false)
+ const [userRole, setUserRole] = useState(null)
+  const [user, setUser] = useState({
+    username: "Guest",
+    AdminName: "Guest User",
+    image: "",
+    Role: null,
+    OfficeId: null
+  })
 
-  const userObject = JSON.parse(localStorage.getItem("user"))
-  const role = userObject?.Role
+  useEffect(() => {
+    const initializeUser = async () => {
+      const userData = JSON.parse(localStorage.getItem("user")) || {
+        username: "Guest",
+        AdminName: "Guest User",
+        image: "",
+        Role: null,
+        OfficeId: null
+      }
+      setUser(userData)
+      await fetchUserRole()
+      await verifySession()
+    }
+    initializeUser()
+  }, [navigate])
+
+  const fetchUserRole = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const sessionToken = localStorage.getItem("sessionToken")
+
+    if (!user || !sessionToken) {
+      setUserRole(null)
+      return
+    }
+
+    try {
+      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          OfficeCode: user.OfficeCode,
+          sessionToken
+        }),
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setUserRole(result.role)
+        // Update user object with the role from API
+        setUser(prev => ({
+          ...prev,
+          Role: result.role
+        }))
+      }
+    } catch (error) {
+      console.error("Error fetching role:", error)
+      setUserRole(null)
+    }
+  }
+  
   
   // Memoize the selected office IDs to prevent unnecessary re-renders of the dashboard data fetch
   const selectedOfficeIdsForFetch = useMemo(() => {
@@ -260,7 +316,7 @@ const Dashboard = () => {
             </Grid>
           ))}
         </Grid>
-        {role === "HO" && (
+        {userRole === "HO" && (
           <Autocomplete
             multiple
             id="office-select"

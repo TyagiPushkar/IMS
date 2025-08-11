@@ -81,7 +81,7 @@ const Layout = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.OfficeCode,
+          OfficeCode: user.OfficeCode,
           sessionToken
         }),
       })
