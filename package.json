@@ -54,6 +54,7 @@
     "@babel/plugin-transform-private-property-in-object": "^7.27.1",
     "@tailwindcss/postcss": "^4.1.11",
     "autoprefixer": "^10.4.21",
-    "tailwindcss": "^4.1.11"
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
   }
 }
