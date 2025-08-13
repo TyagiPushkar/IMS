@@ -98,7 +98,7 @@ export default function Login() {
             <span className="font-medium text-indigo-600 hover:text-indigo-500">LOGIN YOUR ACCOUNT</span>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" autocomplete="off" onSubmit={handleSubmit}>
           <div className="-space-y-px rounded-md shadow-sm">
             <div>
               <label htmlFor="AdminMail" className="sr-only">
@@ -108,7 +108,7 @@ export default function Login() {
                 id="AdminMail"
                 name="AdminMail"
                 type="email"
-                autoComplete="email"
+                autoComplete="new-email"
                 required
                 className="relative block w-full rounded-t-md border-0 py-1.5 px-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 placeholder="Email address"
