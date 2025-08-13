@@ -13,10 +13,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [captchaText, setCaptchaText] = useState("")
   const [captchaError, setCaptchaError] = useState("")
-const [fieldNames] = useState({
-  email: `email_${Math.random().toString(36).substr(2, 8)}`,
-  password: `password_${Math.random().toString(36).substr(2, 8)}`
-});
 
   // Fetch CAPTCHA from server
   const fetchCaptcha = async () => {
@@ -110,7 +106,7 @@ const [fieldNames] = useState({
               </label>
               <input
                 id="AdminMail"
-                name={fieldNames.email}
+                name="AdminMail"
                 type="email"
                 autocomplete="new-email"
                 required
@@ -126,7 +122,7 @@ const [fieldNames] = useState({
               </label>
               <input
   id="Password"
-  name={fieldNames.password}
+  name="Password"
   type="password"
   autocomplete="new-password"  // Changed from "current-password"
   required
