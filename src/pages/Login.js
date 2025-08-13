@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-
 export default function Login() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -14,6 +13,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [captchaText, setCaptchaText] = useState("")
   const [captchaError, setCaptchaError] = useState("")
+const [fieldNames] = useState({
+  email: `email_${Math.random().toString(36).substr(2, 8)}`,
+  password: `password_${Math.random().toString(36).substr(2, 8)}`
+});
 
   // Fetch CAPTCHA from server
   const fetchCaptcha = async () => {
@@ -99,6 +102,7 @@ export default function Login() {
           </p>
         </div>
         <form className="mt-8 space-y-6" autocomplete="off" onSubmit={handleSubmit}>
+          
           <div className="-space-y-px rounded-md shadow-sm">
             <div>
               <label htmlFor="AdminMail" className="sr-only">
@@ -106,7 +110,7 @@ export default function Login() {
               </label>
               <input
                 id="AdminMail"
-                name="AdminMail"
+                name={fieldNames.email}
                 type="email"
                 autocomplete="new-email"
                 required
@@ -122,7 +126,7 @@ export default function Login() {
               </label>
               <input
   id="Password"
-  name="Password"
+  name={fieldNames.password}
   type="password"
   autocomplete="new-password"  // Changed from "current-password"
   required
