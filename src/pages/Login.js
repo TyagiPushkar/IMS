@@ -43,41 +43,44 @@ export default function Login() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    setCaptchaError("")
+  e.preventDefault()
+  setLoading(true)
+  setError("")
+  setCaptchaError("")
 
-    try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/login.php", {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          AdminMail: form.AdminMail,
-          Password: form.Password,
-          captchaInput: form.captchaInput
-        }),
-      })
-      const result = await response.json()
+  try {
+    // Convert password to Base64
+    const base64Password = btoa(unescape(encodeURIComponent(form.Password)))
+    
+    const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/login.php", {
+      method: "POST",
+      credentials: 'include',
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        AdminMail: form.AdminMail,
+        Password: base64Password, // Send Base64 encoded password
+        captchaInput: form.captchaInput
+      }),
+    })
+    const result = await response.json()
 
-      if (result.success) {
-        localStorage.setItem("user", JSON.stringify(result.data))
-        localStorage.setItem("sessionToken", result.data.sessionToken)
-        navigate("/dashboard")
-      } else {
-        setError(result.message || "Login failed")
-        fetchCaptcha() // Get new CAPTCHA on failure
-      }
-    } catch (err) {
-      setError("Network error. Please try again.")
-      fetchCaptcha()
-    } finally {
-      setLoading(false)
+    if (result.success) {
+      localStorage.setItem("user", JSON.stringify(result.data))
+      localStorage.setItem("sessionToken", result.data.sessionToken)
+      navigate("/dashboard")
+    } else {
+      setError(result.message || "Login failed")
+      fetchCaptcha() // Get new CAPTCHA on failure
     }
+  } catch (err) {
+    setError("Network error. Please try again.")
+    fetchCaptcha()
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-1 h-screen items-center place-items-center">
