@@ -98,7 +98,19 @@ export default function Login() {
           </p>
         </div>
         <form className="mt-8 space-y-6" autocomplete="off" onSubmit={handleSubmit}>
-          
+           <input 
+    type="email" 
+    name="fake-email" 
+    autoComplete="off" 
+    style={{ display: 'none' }} 
+  />
+  <input 
+    type="password" 
+    name="fake-password" 
+    autoComplete="new-password" 
+    style={{ display: 'none' }} 
+  />
+
           <div className="-space-y-px rounded-md shadow-sm">
             <div>
               <label htmlFor="AdminMail" className="sr-only">
