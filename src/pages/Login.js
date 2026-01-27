@@ -51,45 +51,32 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
-    setCaptchaError("");
+    setLoading(true);
 
     try {
-      const base64Password = btoa(unescape(encodeURIComponent(form.Password)));
+      // For demo: allow any credentials
+      const demoUser = {
+        AdminId: 1,
+        AdminMail: "demo@system.com",
+        AdminName: "Demo User",
+        OfficeId: 1,
+        OfficeCode: "HO",
+        Role: "Admin",
+        sessionToken: "demo-token-123",
+      };
 
-      const response = await fetch(
-        "https://namami-infotech.com/SatyaMicro/src/auth/login.php",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            AdminMail: form.AdminMail,
-            Password: base64Password,
-            captchaInput: form.captchaInput,
-          }),
-        }
-      );
-      const result = await response.json();
+      localStorage.setItem("user", JSON.stringify(demoUser));
+      localStorage.setItem("sessionToken", demoUser.sessionToken);
 
-      if (result.success) {
-        localStorage.setItem("user", JSON.stringify(result.data));
-        localStorage.setItem("sessionToken", result.data.sessionToken);
-        navigate("/dashboard");
-      } else {
-        setError(result.message || "Login failed");
-        fetchCaptcha();
-      }
+      navigate("/dashboard");
     } catch (err) {
-      setError("Network error. Please try again.");
-      fetchCaptcha();
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
