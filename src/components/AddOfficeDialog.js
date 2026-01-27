@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogActions,
@@ -21,7 +21,8 @@ import {
   Fade,
   CircularProgress,
   InputAdornment,
-} from "@mui/material"
+  Autocomplete,
+} from "@mui/material";
 import {
   Close as CloseIcon,
   Business as BusinessIcon,
@@ -30,107 +31,311 @@ import {
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
   VpnKey as PasswordIcon,
-} from "@mui/icons-material"
+  SupervisorAccount as BranchManagerIcon,
+} from "@mui/icons-material";
 
 const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
   const [form, setForm] = useState({
     OfficeCode: "",
     OfficeName: "",
     OfficeAddress: "",
+    AdminEmpId: "", // Store selected employee ID
     AdminName: "",
     AdminMail: "",
     AdminPhone: "",
+    BMEmpId: "", // Branch Manager Employee ID
+    BMName: "", // Branch Manager Name
     Password: "",
     Role: "",
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [fieldErrors, setFieldErrors] = useState({})
+  });
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Fetch employees when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchEmployees();
+    }
+  }, [open]);
+
+  const fetchEmployees = async () => {
+    setLoadingEmployees(true);
+    try {
+      // Get user session data from localStorage
+      const userData = localStorage.getItem("user");
+      const sessionToken = localStorage.getItem("sessionToken");
+
+      if (!userData || !sessionToken) {
+        throw new Error("User session not found");
+      }
+
+      const userObject = JSON.parse(userData);
+
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/get_employees.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: userObject.OfficeId,
+            sessionToken: sessionToken,
+          }),
+        }
+      );
+
+      if (response.status === 401) {
+        // Handle unauthorized - clear session and show error
+        localStorage.removeItem("user");
+        localStorage.removeItem("sessionToken");
+        localStorage.removeItem("lastActivity");
+        setError("Session expired. Please login again.");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("API Response:", result); // Debug: Check API response
+
+      if (result.success) {
+        // Set real employee data from API
+        setEmployees(result.data || []);
+        console.log("Employees loaded:", result.data); // Debug
+      } else {
+        setError("Failed to load employees. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      setError("Network error. Please try again.");
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setForm({ ...form, [name]: value })
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
     // Clear field error when user types
     if (fieldErrors[name]) {
-      setFieldErrors({ ...fieldErrors, [name]: "" })
+      setFieldErrors({ ...fieldErrors, [name]: "" });
     }
-    if (error) setError("")
-  }
+    if (error) setError("");
+  };
+
+  const handleAdminSelect = (event, value) => {
+    console.log("Admin selected:", value); // Debug
+
+    if (value) {
+      setForm({
+        ...form,
+        AdminEmpId: value.EmpId || "",
+        AdminName: value.Name || "",
+        AdminMail: value.Mail || "",
+        AdminPhone: value.Phone || "", // Your API doesn't have Phone field
+      });
+      console.log("Updated form:", {
+        // Debug
+        AdminEmpId: value.EmpId,
+        AdminName: value.Name,
+        AdminMail: value.Mail,
+        AdminPhone: value.Phone,
+      });
+
+      // Clear any related field errors
+      const newFieldErrors = { ...fieldErrors };
+      delete newFieldErrors.AdminName;
+      delete newFieldErrors.AdminMail;
+      delete newFieldErrors.AdminPhone;
+      setFieldErrors(newFieldErrors);
+    } else {
+      // Clear selection
+      console.log("Clearing admin selection"); // Debug
+      setForm({
+        ...form,
+        AdminEmpId: "",
+        AdminName: "",
+        AdminMail: "",
+        AdminPhone: "",
+      });
+    }
+  };
+
+  const handleBranchManagerSelect = (event, value) => {
+    console.log("Branch Manager selected:", value); // Debug
+
+    if (value) {
+      setForm({
+        ...form,
+        BMEmpId: value.EmpId || "",
+        BMName: value.Name || "",
+      });
+      console.log("Updated BM form:", {
+        // Debug
+        BMEmpId: value.EmpId,
+        BMName: value.Name,
+      });
+
+      // Clear field error
+      const newFieldErrors = { ...fieldErrors };
+      delete newFieldErrors.BMEmpId;
+      setFieldErrors(newFieldErrors);
+    } else {
+      // Clear selection
+      console.log("Clearing BM selection"); // Debug
+      setForm({
+        ...form,
+        BMEmpId: "",
+        BMName: "",
+      });
+    }
+  };
 
   const validateForm = () => {
-    const errors = {}
+    const errors = {};
     const requiredFields = [
       "OfficeCode",
       "OfficeName",
       "OfficeAddress",
-      "AdminName",
-      "AdminMail",
-      "AdminPhone",
+      "AdminEmpId",
+      "BMEmpId", // Branch Manager is also required
       "Password",
       "Role",
-    ]
+    ];
+
     requiredFields.forEach((field) => {
       if (!form[field]) {
-        errors[field] = "This field is required"
+        errors[field] = "This field is required";
       }
-    })
+    });
+
     // Email validation
     if (form.AdminMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.AdminMail)) {
-      errors.AdminMail = "Please enter a valid email address"
+      errors.AdminMail = "Please enter a valid email address";
     }
-    setFieldErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+
+    // Check if Admin and BM are the same person
+    if (form.AdminEmpId && form.BMEmpId && form.AdminEmpId === form.BMEmpId) {
+      errors.BMEmpId = "Admin and Branch Manager cannot be the same person";
+    }
+
+    setFieldErrors(errors);
+    console.log("Form validation errors:", errors); // Debug
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSave = async () => {
+    console.log("Form before save:", form); // Debug
+
     if (!validateForm()) {
-      setError("Please fix the errors above")
-      return
+      setError("Please fix the errors above");
+      return;
     }
-    setLoading(true)
-    setError("")
-    setSuccess("")
+
+    // Create the payload with all required fields
+    const payload = {
+      OfficeCode: form.OfficeCode,
+      OfficeName: form.OfficeName,
+      OfficeAddress: form.OfficeAddress,
+      AdminEmpId: form.AdminEmpId,
+      AdminName: form.AdminName,
+      AdminMail: form.AdminMail,
+      AdminPhone: form.AdminPhone,
+      BMEmpId: form.BMEmpId,
+      BMName: form.BMName,
+      Password: form.Password,
+      Role: form.Role,
+    };
+
+    console.log("Saving payload:", payload); // Debug
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/add_offices.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      })
-      const result = await response.json()
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/offices/add_offices.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      const result = await response.json();
+      console.log("Save response:", result); // Debug
+
       if (result.success) {
-        setSuccess("Office added successfully!")
+        setSuccess("Office added successfully!");
+        // Reset form
         setForm({
           OfficeCode: "",
           OfficeName: "",
           OfficeAddress: "",
+          AdminEmpId: "",
           AdminName: "",
           AdminMail: "",
           AdminPhone: "",
+          BMEmpId: "",
+          BMName: "",
           Password: "",
           Role: "",
-        })
+        });
         setTimeout(() => {
-          onClose()
-          refreshOffice() // This calls the fetchOfficeData in Offices.js
-        }, 1500)
+          onClose();
+          refreshOffice();
+        }, 1500);
       } else {
-        setError(result.message || "Failed to add office.")
+        setError(result.message || "Failed to add office.");
       }
     } catch (err) {
-      setError("Network error. Please try again.")
+      console.error("Save error:", err); // Debug
+      setError("Network error. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleClose = () => {
     if (!loading) {
-      onClose()
+      // Reset form on close
+      setForm({
+        OfficeCode: "",
+        OfficeName: "",
+        OfficeAddress: "",
+        AdminEmpId: "",
+        AdminName: "",
+        AdminMail: "",
+        AdminPhone: "",
+        BMEmpId: "",
+        BMName: "",
+        Password: "",
+        Role: "",
+      });
+      setError("");
+      setSuccess("");
+      setFieldErrors({});
+      onClose();
     }
-  }
+  };
+
+  // Find selected employee object
+  const getSelectedAdmin = () => {
+    return employees.find((emp) => emp.EmpId === form.AdminEmpId) || null;
+  };
+
+  const getSelectedBM = () => {
+    return employees.find((emp) => emp.EmpId === form.BMEmpId) || null;
+  };
+
+  // Filter out admin from branch manager options
+  const getBranchManagerOptions = () => {
+    return employees.filter((emp) => emp.EmpId !== form.AdminEmpId);
+  };
 
   return (
     <Dialog
@@ -141,7 +346,7 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
       PaperProps={{
         sx: {
           borderRadius: 2,
-          minHeight: 500,
+          minHeight: 600,
         },
       }}
     >
@@ -161,7 +366,11 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             Add New Office
           </Typography>
         </Box>
-        <IconButton onClick={handleClose} disabled={loading} sx={{ color: "white" }}>
+        <IconButton
+          onClick={handleClose}
+          disabled={loading}
+          sx={{ color: "white" }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -184,6 +393,24 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             )}
           </Box>
         </Fade>
+
+        {/* Debug Info - Remove in production */}
+        <Box
+          sx={{
+            mb: 2,
+            p: 1,
+            bgcolor: "#f5f5f5",
+            borderRadius: 1,
+            fontSize: "12px",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Debug Info: Employees loaded: {employees.length} | Selected Admin
+            ID: {form.AdminEmpId || "None"} | Selected BM ID:{" "}
+            {form.BMEmpId || "None"}
+          </Typography>
+        </Box>
+
         <Grid container spacing={3}>
           {/* Office Code */}
           <Grid item xs={12} sm={6}>
@@ -206,6 +433,7 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
+
           {/* Office Name */}
           <Grid item xs={12} sm={6}>
             <TextField
@@ -220,6 +448,7 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
+
           {/* Office Address */}
           <Grid item xs={12}>
             <TextField
@@ -243,71 +472,247 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-          {/* Admin Name */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              required
-              label="Admin Name"
-              name="AdminName"
-              fullWidth
-              value={form.AdminName}
-              onChange={handleInputChange}
-              error={Boolean(fieldErrors.AdminName)}
-              helperText={fieldErrors.AdminName}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={loading}
-            />
+
+          {/* ================= ADMIN SECTION ================= */}
+          <Grid item xs={12}>
+            <Typography
+              variant="subtitle1"
+              fontWeight="bold"
+              color="primary"
+              sx={{ mb: 1 }}
+            >
+              Admin Details
+            </Typography>
           </Grid>
-          {/* Admin Email */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              required
-              type="email"
-              label="Admin Email"
-              name="AdminMail"
+
+          {/* Admin Selection Dropdown */}
+          <Grid item xs={12}>
+            <FormControl
               fullWidth
-              value={form.AdminMail}
-              onChange={handleInputChange}
-              error={Boolean(fieldErrors.AdminMail)}
-              helperText={fieldErrors.AdminMail || "Enter a valid email address"}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={loading}
-            />
-          </Grid>
-          {/* Admin Phone */}
-          <Grid item xs={12} sm={6}>
-            <TextField
               required
-              label="Admin Phone"
-              name="AdminPhone"
-              fullWidth
-              value={form.AdminPhone}
-              onChange={handleInputChange}
-              error={Boolean(fieldErrors.AdminPhone)}
-              helperText={fieldErrors.AdminPhone}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PhoneIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={loading}
-            />
+              error={Boolean(fieldErrors.AdminEmpId)}
+            >
+              <Autocomplete
+                options={employees}
+                getOptionLabel={(option) =>
+                  `${option.EmpId || ""} - ${option.Name || ""} (${
+                    option.Mail || ""
+                  })`
+                }
+                value={getSelectedAdmin()}
+                onChange={handleAdminSelect}
+                loading={loadingEmployees}
+                isOptionEqualToValue={(option, value) =>
+                  option.EmpId === value.EmpId
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Admin *"
+                    required
+                    error={Boolean(fieldErrors.AdminEmpId)}
+                    helperText={
+                      fieldErrors.AdminEmpId ||
+                      "Select an employee to be the Admin"
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <PersonIcon color="action" />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                      endAdornment: (
+                        <>
+                          {loadingEmployees ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.ID || option.EmpId}>
+                    <Box>
+                      <Typography variant="body1">
+                        {option.Name || "No Name"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        ID: {option.EmpId || "N/A"} � Email:{" "}
+                        {option.Mail || "N/A"} � Office:{" "}
+                        {option.OfficeCode || "N/A"}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                disabled={loading}
+              />
+            </FormControl>
           </Grid>
-          {/* Password */}
+
+          {/* Display selected admin info (read-only) */}
+          {form.AdminEmpId && (
+            <>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Admin Name"
+                  fullWidth
+                  value={form.AdminName}
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  disabled={loading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Admin Email"
+                  fullWidth
+                  value={form.AdminMail}
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  disabled={loading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Admin Phone"
+                  fullWidth
+                  value={form.AdminPhone}
+                  placeholder="No phone in API"
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  disabled={loading}
+                />
+              </Grid>
+            </>
+          )}
+
+          {/* ================= BRANCH MANAGER SECTION ================= */}
+          <Grid item xs={12}>
+            <Typography
+              variant="subtitle1"
+              fontWeight="bold"
+              color="primary"
+              sx={{ mt: 2, mb: 1 }}
+            >
+              Branch Manager Details
+            </Typography>
+          </Grid>
+
+          {/* Branch Manager Selection Dropdown */}
+          <Grid item xs={12}>
+            <FormControl
+              fullWidth
+              required
+              error={Boolean(fieldErrors.BMEmpId)}
+            >
+              <Autocomplete
+                options={getBranchManagerOptions()}
+                getOptionLabel={(option) =>
+                  `${option.EmpId || ""} - ${option.Name || ""} (${
+                    option.Mail || ""
+                  })`
+                }
+                value={getSelectedBM()}
+                onChange={handleBranchManagerSelect}
+                loading={loadingEmployees}
+                isOptionEqualToValue={(option, value) =>
+                  option.EmpId === value.EmpId
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Branch Manager *"
+                    required
+                    error={Boolean(fieldErrors.BMEmpId)}
+                    helperText={
+                      fieldErrors.BMEmpId ||
+                      "Select an employee to be the Branch Manager"
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <BranchManagerIcon color="action" />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                      endAdornment: (
+                        <>
+                          {loadingEmployees ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.ID || option.EmpId}>
+                    <Box>
+                      <Typography variant="body1">
+                        {option.Name || "No Name"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        ID: {option.EmpId || "N/A"} � Email:{" "}
+                        {option.Mail || "N/A"} � Office:{" "}
+                        {option.OfficeCode || "N/A"}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                disabled={loading}
+              />
+            </FormControl>
+          </Grid>
+
+          {/* Display selected Branch Manager info (read-only) */}
+          {form.BMEmpId && (
+            <Grid item xs={12}>
+              <TextField
+                label="Branch Manager Name"
+                fullWidth
+                value={form.BMName}
+                InputProps={{
+                  readOnly: true,
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <BranchManagerIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+                disabled={loading}
+              />
+            </Grid>
+          )}
+
+          {/* ================= PASSWORD & ROLE ================= */}
           <Grid item xs={12} sm={6}>
             <TextField
               required
@@ -318,7 +723,9 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               value={form.Password}
               onChange={handleInputChange}
               error={Boolean(fieldErrors.Password)}
-              helperText={fieldErrors.Password}
+              helperText={
+                fieldErrors.Password || "Set password for admin login"
+              }
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -329,13 +736,19 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
               disabled={loading}
             />
           </Grid>
-          {/* Role */}
-          <Grid item xs={12}>
+
+          <Grid item xs={12} sm={6}>
             <FormControl fullWidth required error={Boolean(fieldErrors.Role)}>
-              <InputLabel>Role</InputLabel>
-              <Select label="Role" name="Role" value={form.Role} onChange={handleInputChange} disabled={loading}>
-                <MenuItem value="Admin">Admin</MenuItem>
-                <MenuItem value="SuperAdmin">Super Admin</MenuItem>
+              <InputLabel>Role *</InputLabel>
+              <Select
+                label="Role *"
+                name="Role"
+                value={form.Role}
+                onChange={handleInputChange}
+                disabled={loading}
+              >
+                <MenuItem value="Admin">State Admin</MenuItem>
+                <MenuItem value="SuperAdmin">HO Admin</MenuItem>
               </Select>
               {fieldErrors.Role && (
                 <Typography variant="caption" color="error">
@@ -345,21 +758,39 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
             </FormControl>
           </Grid>
         </Grid>
+
         <Box mt={3}>
           <Divider />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            <strong>Note:</strong> All fields marked with * are required. The admin will receive login credentials via
-            email.
+            <strong>Note:</strong> All fields marked with * are required. Admin
+            will receive login credentials. Admin and Branch Manager must be
+            different employees.
           </Typography>
+
+          {/* Display real employee count */}
+          {employees.length > 0 && (
+            <Typography
+              variant="caption"
+              color="info.main"
+              sx={{ display: "block", mt: 1 }}
+            >
+              Loaded {employees.length} employees from database
+            </Typography>
+          )}
         </Box>
       </DialogContent>
+
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button onClick={handleClose} disabled={loading} size="large">
           Cancel
         </Button>
         <Button
           onClick={handleSave}
-          disabled={loading || Object.keys(fieldErrors).some((key) => fieldErrors[key])}
+          disabled={
+            loading ||
+            loadingEmployees ||
+            Object.keys(fieldErrors).some((key) => fieldErrors[key])
+          }
           variant="contained"
           size="large"
           startIcon={loading ? <CircularProgress size={20} /> : null}
@@ -375,7 +806,7 @@ const AddOfficeDialog = ({ open, onClose, refreshOffice }) => {
         </Button>
       </DialogActions>
     </Dialog>
-  )
+  );
 }
 
-export default AddOfficeDialog
+export default AddOfficeDialog;

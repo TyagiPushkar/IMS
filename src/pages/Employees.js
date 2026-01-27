@@ -19,7 +19,6 @@ import {
   TablePagination,
   CircularProgress,
   Alert,
-  Fade,
   Tooltip,
   Menu,
   MenuItem,
@@ -28,367 +27,763 @@ import {
   Select,
   Stack,
   Avatar,
-} from "@mui/material"
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Card,
+  CardContent,
+} from "@mui/material";
 import {
   Search as SearchIcon,
   Add as AddIcon,
-  FilterList as FilterIcon,
+  FilterAlt as FilterIcon,
   Download as DownloadIcon,
   Refresh as RefreshIcon,
-} from "@mui/icons-material"
+  Edit as EditIcon,
+  Block as BlockIcon,
+  Upload as UploadIcon,
+  Delete as DeleteIcon,
+  Clear as ClearIcon,
+} from "@mui/icons-material";
 import AddEmployeeDialog from "../components/AddEmployeeDialog"
-import { useNavigate } from "react-router-dom" // Import useNavigate
+import { useNavigate } from "react-router-dom";
+
+// Utility to format date to dd/mm/yyyy
+const formatDate = (datetime) => {
+  if (!datetime) return "";
+  const d = new Date(datetime);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 function Employees() {
-  const navigate = useNavigate() // Initialize useNavigate
+  const navigate = useNavigate();
 
-  // State management
-  const [openAddEmployeeDialog, setOpenAddEmployeeDialog] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [employeeData, setEmployeeData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  // State
+  const [openAddEmployeeDialog, setOpenAddEmployeeDialog] = useState(false);
+  const [editEmployee, setEditEmployee] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [employeeData, setEmployeeData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [officeFilter, setOfficeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [openBulkUpload, setOpenBulkUpload] = useState(false);
+  const [openBulkDeactivate, setOpenBulkDeactivate] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Pagination state
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const downloadSampleExcel = () => {
+    const csv = [
+      ["EmpId", "Name", "Mail", "OfficeCode"],
+      ["EMP001", "John Doe", "john@company.com", "HQ"],
+      ["EMP002", "Jane Smith", "jane@company.com", "BR1"],
+    ]
+      .map((r) => r.join(","))
+      .join("\n");
 
-  // Filter state
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null)
-  const [officeFilter, setOfficeFilter] = useState("")
-  const [dateFilter, setDateFilter] = useState("")
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "employee_bulk_sample.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
-  // Menu state
-  const [menuAnchorEl, setMenuAnchorEl] = useState(null)
+  const handleBulkUpload = async () => {
+    if (!bulkFile) {
+      alert("Please select an Excel file");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", bulkFile);
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/upload_bulk_employees.php",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const result = await res.json();
+      alert(result.message);
+      if (result.success) {
+        setOpenBulkUpload(false);
+        fetchEmployeeData();
+      }
+    } catch {
+      alert("Server error during bulk upload");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (!bulkFile) {
+      alert("Please select Excel file with EmpId column");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", bulkFile);
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/bulk_deactivate_employees.php",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const result = await res.json();
+      alert(result.message);
+      if (result.success) {
+        setOpenBulkDeactivate(false);
+        fetchEmployeeData();
+      }
+    } catch {
+      alert("Server error during bulk deactivate");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   // Fetch employee data
   const fetchEmployeeData = async () => {
-    setLoading(true)
-    setError("") // Clear previous errors
-
-    const user = JSON.parse(localStorage.getItem("user"))
-    const sessionToken = localStorage.getItem("sessionToken")
-
+    setLoading(true);
+    setError("");
+    const user = JSON.parse(localStorage.getItem("user"));
+    const sessionToken = localStorage.getItem("sessionToken");
     if (!user || !sessionToken) {
-      setError("Authentication required. Please log in.")
-      setLoading(false)
-      navigate("/login") // Redirect to login if no session
-      return
+      setError("Authentication required. Please log in.");
+      navigate("/login");
+      setLoading(false);
+      return;
     }
-
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/employees/get_employees.php", {
-        method: "POST", // Changed to POST
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.OfficeId, // Send OfficeId as userId
-          sessionToken: sessionToken,
-        }),
-      })
-
-      if (response.status === 401) {
-        // Unauthorized, session invalid or expired
-        localStorage.removeItem("user")
-        localStorage.removeItem("sessionToken")
-        localStorage.removeItem("lastActivity")
-        setError("Session expired or invalid. Please log in again.")
-        navigate("/login")
-        return
+      const res = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/get_employees.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.OfficeId, sessionToken }),
+        }
+      );
+      if (res.status === 401) {
+        localStorage.clear();
+        setError("Session expired. Please log in again.");
+        navigate("/login");
+        return;
       }
-
-      const result = await response.json()
-
-      if (result.success) {
-        setEmployeeData(result.data)
-      } else {
-        setError(result.message || "Failed to fetch employee data.")
-      }
+      const result = await res.json();
+      if (result.success) setEmployeeData(result.data);
+      else setError(result.message || "Failed to fetch employees");
     } catch (err) {
-      console.error("Fetch error:", err)
-      setError("An error occurred while fetching employee data.")
+      setError("Server error while fetching employees");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchEmployeeData()
-  }, [])
+    fetchEmployeeData();
+  }, []);
 
-  // Filter and search logic
   const filteredEmployees = useMemo(() => {
-    return employeeData.filter((employee) => {
+    return employeeData.filter((emp) => {
       const matchesSearch =
-        employee?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee?.EmpId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee?.Mail?.toLowerCase().includes(searchTerm.toLowerCase())
+        emp?.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp?.EmpId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp?.Mail?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesOffice = !officeFilter || employee?.OfficeCode === officeFilter
-      const matchesDate = !dateFilter || employee?.Date?.includes(dateFilter)
+      const matchesOffice = !officeFilter || emp?.OfficeCode === officeFilter;
+      const matchesDate = !dateFilter || emp?.Date?.includes(dateFilter);
 
-      return matchesSearch && matchesOffice && matchesDate
-    })
-  }, [employeeData, searchTerm, officeFilter, dateFilter])
+      const matchesStatus =
+        statusFilter === "" || String(emp?.Status) === statusFilter;
 
-  // Get unique office codes for filter
-  const uniqueOfficeCodes = useMemo(() => {
-    return [...new Set(employeeData.map((emp) => emp.OfficeCode).filter(Boolean))]
-  }, [employeeData])
+      return matchesSearch && matchesOffice && matchesDate && matchesStatus;
+    });
+  }, [employeeData, searchTerm, officeFilter, dateFilter, statusFilter]);
 
-  // Pagination logic
+  const uniqueOfficeCodes = useMemo(
+    () => [...new Set(employeeData.map((e) => e.OfficeCode).filter(Boolean))],
+    [employeeData]
+  );
+
   const paginatedEmployees = useMemo(() => {
-    const startIndex = page * rowsPerPage
-    return filteredEmployees.slice(startIndex, startIndex + rowsPerPage)
-  }, [filteredEmployees, page, rowsPerPage])
+    const start = page * rowsPerPage;
+    return filteredEmployees.slice(start, start + rowsPerPage);
+  }, [filteredEmployees, page, rowsPerPage]);
 
-  // Event handlers
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value)
-    setPage(0) // Reset to first page when searching
-  }
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage)
-  }
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(Number.parseInt(event.target.value, 10))
-    setPage(0)
-  }
-  const handleFilterClick = (event) => {
-    setFilterAnchorEl(event.currentTarget)
-  }
-  const handleFilterClose = () => {
-    setFilterAnchorEl(null)
-  }
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null)
-  }
+  // Handlers
+  const handleChangePage = (e, p) => setPage(p);
+  const handleChangeRowsPerPage = (e) => {
+    setRowsPerPage(+e.target.value);
+    setPage(0);
+  };
+
   const clearFilters = () => {
-    setOfficeFilter("")
-    setDateFilter("")
-    setSearchTerm("")
-    setPage(0)
-  }
-  const exportData = () => {
-    // Simple CSV export
-    const csvContent = [
-      ["Emp ID", "Name", "Email", "Office Code", "Date"],
-      ...filteredEmployees.map((emp) => [emp.EmpId, emp.Name, emp.Mail, emp.OfficeCode, emp.Date]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n")
+    setSearchTerm("");
+    setOfficeFilter("");
+    setDateFilter("");
+    setStatusFilter("");
+    setPage(0);
+  };
 
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "employees.csv"
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
+  const handleExport = () => {
+    const csv = [
+      ["Emp ID", "Name", "Email", "Office", "Date", "Status"],
+      ...filteredEmployees.map((e) => [
+        e.EmpId,
+        e.Name,
+        e.Mail,
+        e.OfficeCode,
+        formatDate(e.Date),
+        e.Status === 1 ? "Active" : "Inactive",
+      ]),
+    ]
+      .map((r) => r.join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "employees.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // ========== EDIT EMPLOYEE ==========
+  const handleEditEmployee = async () => {
+    if (!editEmployee) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/edit_employee.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(editEmployee),
+        }
+      );
+      const result = await res.json();
+      alert(result.message);
+      if (result.success) {
+        setEditEmployee(null);
+        fetchEmployeeData();
+      }
+    } catch {
+      alert("Server error while updating employee");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // ========== DEACTIVATE EMPLOYEE ==========
+  const handleDeactivateEmployee = async (empId) => {
+    if (!window.confirm("Deactivate this employee?")) return;
+    try {
+      const res = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/employees/deactivate_employee.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ EmpId: empId }),
+        }
+      );
+      const result = await res.json();
+      alert(result.message);
+      if (result.success) fetchEmployeeData();
+    } catch {
+      alert("Server error while deactivating employee");
+    }
+  };
+
   return (
-    <Box sx={{ p: 0, maxWidth: "100%" }}>
-      {/* Header */}
-      <Paper elevation={1} sx={{ p: 1, mb: 1 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
-          Employee Management
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Manage and view all employee information
-        </Typography>
+    <Box sx={{ p: 2 }}>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h4">Employee Management</Typography>
       </Paper>
-      {/* Stats Cards */}
-      {/* Main Content */}
-      <Paper elevation={2} sx={{ overflow: "hidden" }}>
-        {/* Toolbar */}
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
+
+      {/* Filter Card */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
+            {/* Search Bar */}
+            <Grid item xs={12} md={4}>
               <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="Search employees..."
+                placeholder="Search by name, ID, or email..."
                 value={searchTerm}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                fullWidth
+                size="small"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon color="action" />
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setSearchTerm("")}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
                     </InputAdornment>
                   ),
                 }}
-                size="small"
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            {/* Status Filter */}
+            <Grid item xs={12} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  label="Status"
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="1">Active</MenuItem>
+                  <MenuItem value="0">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Office Filter */}
+            <Grid item xs={12} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Office</InputLabel>
+                <Select
+                  label="Office"
+                  value={officeFilter}
+                  onChange={(e) => {
+                    setOfficeFilter(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <MenuItem value="">All Offices</MenuItem>
+                  {uniqueOfficeCodes.map((office) => (
+                    <MenuItem key={office} value={office}>
+                      {office}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Date Filter */}
+            <Grid item xs={12} md={2}>
+              <TextField
+                label="Date"
+                type="date"
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value);
+                  setPage(0);
+                }}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            {/* Action Buttons */}
+            <Grid item xs={12} md={2}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Tooltip title="Filter">
-                  <IconButton onClick={handleFilterClick} color="primary">
-                    <FilterIcon />
+                <Tooltip title="Clear Filters">
+                  <IconButton
+                    size="small"
+                    onClick={clearFilters}
+                    color="secondary"
+                  >
+                    <ClearIcon />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Refresh">
-                  <IconButton onClick={fetchEmployeeData} color="primary">
+                  <IconButton size="small" onClick={fetchEmployeeData}>
                     <RefreshIcon />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Export">
-                  <IconButton onClick={exportData} color="primary">
+                  <IconButton size="small" onClick={handleExport}>
                     <DownloadIcon />
                   </IconButton>
                 </Tooltip>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setOpenAddEmployeeDialog(true)}
-                  sx={{ ml: 1 }}
-                >
-                  Add Employee
-                </Button>
               </Stack>
             </Grid>
           </Grid>
-          {/* Active Filters */}
-          {(officeFilter || dateFilter) && (
-            <Box sx={{ mt: 2 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  Active filters:
-                </Typography>
-                {officeFilter && (
-                  <Chip label={`Office: ${officeFilter}`} onDelete={() => setOfficeFilter("")} size="small" />
-                )}
-                {dateFilter && <Chip label={`Date: ${dateFilter}`} onDelete={() => setDateFilter("")} size="small" />}
-                <Button size="small" onClick={clearFilters}>
-                  Clear All
+        </CardContent>
+      </Card>
+
+      {/* Bulk Actions Card */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={8}>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                Bulk Operations
+              </Typography>
+              <Stack direction="row" spacing={2} flexWrap="wrap">
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={downloadSampleExcel}
+                  size="small"
+                >
+                  Sample Template
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<UploadIcon />}
+                  onClick={() => setOpenBulkUpload(true)}
+                  size="small"
+                >
+                  Bulk Upload
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setOpenBulkDeactivate(true)}
+                  size="small"
+                >
+                  Bulk Deactivate
                 </Button>
               </Stack>
-            </Box>
-          )}
-        </Box>
-        {/* Table */}
-        <TableContainer>
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={4}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Box p={3}>
-              <Alert severity="error">{error}</Alert>
-            </Box>
-          ) : (
-            <Fade in={!loading}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Employee ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Office Code</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {paginatedEmployees.map((employee, index) => (
-                    <TableRow
-                      key={employee.EmpId || index}
-                      hover
-                      sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                    >
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
-                          {employee.EmpId}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: "primary.main" }}>
-                            {employee.Name?.charAt(0)?.toUpperCase()}
-                          </Avatar>
-                          <Typography variant="body2">{employee.Name}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {employee.Mail}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={employee.OfficeCode} size="small" variant="outlined" />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{employee.Date}</Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {paginatedEmployees.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                        <Typography variant="body1" color="text.secondary">
-                          No employees found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Fade>
-          )}
-        </TableContainer>
-        {/* Pagination */}
-        {!loading && !error && (
-          <TablePagination
-            component="div"
-            count={filteredEmployees.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-          />
-        )}
-      </Paper>
-      {/* Filter Menu */}
-      <Menu
-        anchorEl={filterAnchorEl}
-        open={Boolean(filterAnchorEl)}
-        onClose={handleFilterClose}
-        PaperProps={{ sx: { minWidth: 250, p: 2 } }}
+            </Grid>
+            <Grid item xs={12} md={4} textAlign="right">
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenAddEmployeeDialog(true)}
+                size="small"
+              >
+                Add Employee
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Results Count */}
+      <Box
+        sx={{
+          mb: 2,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
-        <Typography variant="h6" gutterBottom>
-          Filters
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredEmployees.length} employees
+          {(searchTerm || officeFilter || dateFilter || statusFilter) &&
+            " (filtered)"}
         </Typography>
-        <FormControl fullWidth margin="normal" size="small">
-          <InputLabel>Office Code</InputLabel>
-          <Select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} label="Office Code">
-            <MenuItem value="">All Offices</MenuItem>
-            {uniqueOfficeCodes.map((code) => (
-              <MenuItem key={code} value={code}>
-                {code}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField
-          fullWidth
-          margin="normal"
+        <TablePagination
+          component="div"
+          count={filteredEmployees.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           size="small"
-          label="Date Filter"
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          InputLabelProps={{ shrink: true }}
         />
-      </Menu>
-      {/* Action Menu */}
-      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleMenuClose}>View Details</MenuItem>
-        <MenuItem onClick={handleMenuClose}>Edit Employee</MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: "error.main" }}>
-          Delete Employee
-        </MenuItem>
-      </Menu>
+      </Box>
+
+      {/* Employee Table */}
+      <TableContainer component={Paper}>
+        {loading ? (
+          <Box p={4} textAlign="center">
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error">{error}</Alert>
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Emp ID</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Office</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedEmployees.map((e) => (
+                <TableRow key={e.EmpId} hover>
+                  <TableCell>{e.EmpId}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Avatar
+                        sx={{ width: 32, height: 32, fontSize: "0.875rem" }}
+                      >
+                        {e.Name?.charAt(0)}
+                      </Avatar>
+                      <Typography>{e.Name}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>{e.Mail}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={e.OfficeCode}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{formatDate(e.Date)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={e.Status === 1 ? "Active" : "Inactive"}
+                      color={e.Status === 1 ? "success" : "error"}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={1} justifyContent="center">
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => setEditEmployee({ ...e })}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Deactivate">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeactivateEmployee(e.EmpId)}
+                        >
+                          <BlockIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {paginatedEmployees.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                    <Typography color="text.secondary">
+                      No employees found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </TableContainer>
+
+      {/* Edit Employee Dialog */}
+      <Dialog
+        open={!!editEmployee}
+        onClose={() => setEditEmployee(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Edit Employee</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Name"
+              value={editEmployee?.Name || ""}
+              onChange={(e) =>
+                setEditEmployee({ ...editEmployee, Name: e.target.value })
+              }
+              fullWidth
+              size="small"
+            />
+            <TextField
+              label="Email"
+              type="email"
+              value={editEmployee?.Mail || ""}
+              onChange={(e) =>
+                setEditEmployee({ ...editEmployee, Mail: e.target.value })
+              }
+              fullWidth
+              size="small"
+            />
+            <TextField
+              label="Office Code"
+              value={editEmployee?.OfficeCode || ""}
+              onChange={(e) =>
+                setEditEmployee({ ...editEmployee, OfficeCode: e.target.value })
+              }
+              fullWidth
+              size="small"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditEmployee(null)}>Cancel</Button>
+          <Button onClick={handleEditEmployee} variant="contained">
+            {editLoading ? <CircularProgress size={22} /> : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog
+        open={openBulkUpload}
+        onClose={() => setOpenBulkUpload(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Bulk Upload Employees</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Upload an Excel or CSV file with the following columns:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <li>
+              <Typography variant="body2">
+                <strong>EmpId</strong> - Employee ID
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Name</strong> - Employee Name
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Mail</strong> - Email Address
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>OfficeCode</strong> - Office Location Code
+              </Typography>
+            </li>
+          </Box>
+          <Box
+            sx={{
+              border: "1px dashed",
+              borderColor: "divider",
+              p: 2,
+              borderRadius: 1,
+              mb: 2,
+            }}
+          >
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={(e) => setBulkFile(e.target.files[0])}
+              style={{ width: "100%" }}
+            />
+            {bulkFile && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 1 }}
+              >
+                Selected: {bulkFile.name}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBulkUpload(false)}>Cancel</Button>
+          <Button
+            onClick={handleBulkUpload}
+            variant="contained"
+            disabled={!bulkFile || bulkLoading}
+          >
+            {bulkLoading ? <CircularProgress size={22} /> : "Upload"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Deactivate Dialog */}
+      <Dialog
+        open={openBulkDeactivate}
+        onClose={() => setOpenBulkDeactivate(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Bulk Deactivate Employees</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action will deactivate all employees listed in the uploaded
+            file.
+          </Alert>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Upload an Excel or CSV file with a single column:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <li>
+              <Typography variant="body2">
+                <strong>EmpId</strong> - Employee ID
+              </Typography>
+            </li>
+          </Box>
+          <Box
+            sx={{
+              border: "1px dashed",
+              borderColor: "divider",
+              p: 2,
+              borderRadius: 1,
+            }}
+          >
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={(e) => setBulkFile(e.target.files[0])}
+              style={{ width: "100%" }}
+            />
+            {bulkFile && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 1 }}
+              >
+                Selected: {bulkFile.name}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBulkDeactivate(false)}>Cancel</Button>
+          <Button
+            onClick={handleBulkDeactivate}
+            variant="contained"
+            color="error"
+            disabled={!bulkFile || bulkLoading}
+          >
+            {bulkLoading ? <CircularProgress size={22} /> : "Deactivate"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Add Employee Dialog */}
       <AddEmployeeDialog
         open={openAddEmployeeDialog}
@@ -396,7 +791,7 @@ function Employees() {
         refreshEmployees={fetchEmployeeData}
       />
     </Box>
-  )
+  );
 }
 
-export default Employees
+export default Employees;

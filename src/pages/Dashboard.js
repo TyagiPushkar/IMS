@@ -75,14 +75,17 @@ const Dashboard = () => {
     }
 
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/role/get_roles.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          OfficeCode: user.OfficeCode,
-          sessionToken
-        }),
-      })
+      const response = await fetch(
+        "http://172.25.0.50/backend/src/role/get_roles.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            OfficeCode: user.OfficeCode,
+            sessionToken,
+          }),
+        },
+      );
 
       const result = await response.json()
       if (result.success) {
@@ -127,16 +130,19 @@ const Dashboard = () => {
     }
 
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/offices/get_offices.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "http://172.25.0.50/backend/src/offices/get_offices.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: userData.OfficeId,
+            sessionToken: userData.sessionToken,
+          }),
         },
-        body: JSON.stringify({
-          userId: userData.OfficeId,
-          sessionToken: userData.sessionToken,
-        }),
-      })
+      );
 
       if (response.status === 401) {
         localStorage.removeItem("user")
@@ -184,13 +190,16 @@ const Dashboard = () => {
         selectedOfficeIds: selectedOfficeIdsForFetch,
       }
 
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/dashboard/dashboard.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "http://172.25.0.50/backend/src/dashboard/dashboard.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      })
+      );
 
       if (response.status === 401) {
         localStorage.removeItem("user")

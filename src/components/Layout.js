@@ -21,8 +21,22 @@ import {
   useTheme,
   alpha,
   Chip,
-} from "@mui/material"
-import { Home, Menu as MenuIcon, Logout, ChevronLeft, ChevronRight } from "@mui/icons-material"
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Alert,
+} from "@mui/material";
+import {
+  Home,
+  Menu as MenuIcon,
+  Logout,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+} from "@mui/icons-material";
 import BusinessIcon from "@mui/icons-material/Business"
 import { NavLink, Outlet, useNavigate } from "react-router-dom"
 import logo from "../assets/logo.png"
@@ -31,7 +45,7 @@ import InventoryIcon from "@mui/icons-material/Inventory"
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
 import MoveDownIcon from "@mui/icons-material/MoveDown"
 import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing"
-
+import PersonIcon from "@mui/icons-material/Person";
 const drawerWidth = 280
 const collapsedDrawerWidth = 70
 
@@ -43,6 +57,14 @@ const Layout = () => {
   const [drawerCollapsed, setDrawerCollapsed] = useState(false)
   const [notificationAnchor, setNotificationAnchor] = useState(null)
   const [userRole, setUserRole] = useState(null)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [user, setUser] = useState({
     username: "Guest",
     AdminName: "Guest User",
@@ -51,21 +73,19 @@ const Layout = () => {
     OfficeId: null
   })
 
-  useEffect(() => {
-    const initializeUser = async () => {
-      const userData = JSON.parse(localStorage.getItem("user")) || {
-        username: "Guest",
-        AdminName: "Guest User",
-        image: "",
-        Role: null,
-        OfficeId: null
-      }
-      setUser(userData)
-      await fetchUserRole()
-      await verifySession()
-    }
-    initializeUser()
-  }, [navigate])
+useEffect(() => {
+  const userData = JSON.parse(localStorage.getItem("user")) || {};
+  setUser({
+    username: userData.username || "Guest",
+    AdminName: userData.AdminName || "Guest User",
+    image: userData.image || "",
+    Role: userData.Role || "Guest",
+    OfficeId: userData.OfficeId || null,
+  });
+  setUserRole(userData.Role || "Guest");
+}, []);
+
+
 
   const fetchUserRole = async () => {
     const user = JSON.parse(localStorage.getItem("user"))
@@ -102,39 +122,37 @@ const Layout = () => {
   }
 
   const verifySession = async () => {
-    const user = JSON.parse(localStorage.getItem("user"))
-    const sessionToken = localStorage.getItem("sessionToken")
-    if (!user || !sessionToken) {
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      navigate("/login")
-      return
+    const sessionToken = localStorage.getItem("sessionToken");
+
+    if (!sessionToken) {
+      localStorage.clear();
+      navigate("/login");
+      return;
     }
-    
+
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/auth/authMiddleware.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionToken }), // ✅ ONLY TOKEN
         },
-        body: JSON.stringify({
-          userId: user.OfficeId,
-          sessionToken,
-        }),
-      })
-      const result = await response.json()
+      );
+
+      const result = await response.json();
+
       if (!result.valid) {
-        localStorage.removeItem("user")
-        localStorage.removeItem("sessionToken")
-        navigate("/login")
+        localStorage.clear();
+        navigate("/login");
       }
     } catch (error) {
-      console.error("Session verification error:", error)
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      navigate("/login")
+      console.error("Session verification error:", error);
+      localStorage.clear();
+      navigate("/login");
     }
-  }
+  };
+
 
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
@@ -142,44 +160,129 @@ const Layout = () => {
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen)
   const handleDrawerCollapse = () => setDrawerCollapsed(!drawerCollapsed)
 
-  const menuItems = [
-    { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
-    { to: "/inventory", icon: <InventoryIcon />, text: "Inventory", badge: null },
-    userRole === "HO" && { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
-    userRole === "HO" && { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
-    { to: "/purchase", icon: <ShoppingCartIcon />, text: "Purchases", badge: null },
-    { to: "/transfer", icon: <MoveDownIcon />, text: "Stock Transfer", badge: null },
-    { to: "/issue", icon: <CallMissedOutgoingIcon />, text: "Issue Item", badge: null },
-  ].filter(Boolean)
+  const handleChangePasswordOpen = () => {
+    setChangePasswordOpen(true);
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setPasswordError("");
+    setPasswordSuccess("");
+    handleMenuClose();
+  };
 
-  const handleLogout = async () => {
+  const handleChangePasswordClose = () => {
+    setChangePasswordOpen(false);
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePasswordSubmit = async () => {
+    // Validation
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      setPasswordError("All fields are required");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters long");
+      return;
+    }
+
     try {
-      const user = JSON.parse(localStorage.getItem("user"))
-      const sessionToken = localStorage.getItem("sessionToken")
+      const sessionToken = localStorage.getItem("sessionToken");
+      const user = JSON.parse(localStorage.getItem("user"));
 
-      if (user && sessionToken) {
-        await fetch("https://namami-infotech.com/SatyaMicro/src/auth/logout.php", {
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/auth/change_password.php",
+        {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userId: user.OfficeId,
-            sessionToken,
+            OfficeId: user.OfficeId,
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+            sessionToken: sessionToken,
           }),
-        })
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPasswordSuccess("Password changed successfully!");
+        setPasswordError("");
+        setTimeout(() => {
+          setChangePasswordOpen(false);
+        }, 2000);
+      } else {
+        setPasswordError(result.message || "Failed to change password");
+        setPasswordSuccess("");
       }
     } catch (error) {
-      console.error("Logout error:", error)
-    } finally {
-      localStorage.removeItem("user")
-      localStorage.removeItem("sessionToken")
-      localStorage.removeItem("lastActivity")
-      navigate("/login")
+      console.error("Password change error:", error);
+      setPasswordError("An error occurred while changing password");
+      setPasswordSuccess("");
     }
-  }
+  };
 
-    const drawerContent = (
+  const menuItems = [
+    { to: "/dashboard", icon: <Home />, text: "Dashboard", badge: null },
+    {
+      to: "/inventory",
+      icon: <InventoryIcon />,
+      text: "Inventory",
+      badge: null,
+    },
+    { to: "/employees", icon: <PeopleIcon />, text: "Employees", badge: null },
+    { to: "/offices", icon: <BusinessIcon />, text: "Offices", badge: null },
+    {
+      to: "/purchase",
+      icon: <ShoppingCartIcon />,
+      text: "Purchases",
+      badge: null,
+    },
+    {
+      to: "/transfer",
+      icon: <MoveDownIcon />,
+      text: "Stock Transfer",
+      badge: null,
+    },
+    {
+      to: "/issue",
+      icon: <CallMissedOutgoingIcon />,
+      text: "Issue Item",
+      badge: null,
+    },
+    { to: "/vendor", icon: <PersonIcon />, text: "Vendor", badge: null },
+  ];
+
+
+ const handleLogout = () => {
+   localStorage.removeItem("user");
+   localStorage.removeItem("sessionToken");
+   navigate("/frontend/login");
+ };
+
+  const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Drawer Header */}
       <Box
@@ -194,7 +297,10 @@ const Layout = () => {
       >
         {!drawerCollapsed && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: "bold", color: theme.palette.primary.main }}>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: "bold", color: theme.palette.primary.main }}
+            >
               SatyaMicro
             </Typography>
           </Box>
@@ -224,10 +330,17 @@ const Layout = () => {
                       mb: 0.5,
                       borderRadius: 2,
                       transition: "all 0.2s ease-in-out",
-                      backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.1) : "transparent",
-                      color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                      backgroundColor: isActive
+                        ? alpha(theme.palette.primary.main, 0.1)
+                        : "transparent",
+                      color: isActive
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
                       "&:hover": {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                        backgroundColor: alpha(
+                          theme.palette.primary.main,
+                          0.08,
+                        ),
                         transform: "translateX(4px)",
                       },
                       justifyContent: drawerCollapsed ? "center" : "flex-start",
@@ -330,7 +443,7 @@ const Layout = () => {
         </Box>
       )}
     </Box>
-  )
+  );
 
   return (
     <Box sx={{ display: "flex", overflowX: "hidden" }}>
@@ -346,7 +459,9 @@ const Layout = () => {
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between", px: 3 }}>
+        <Toolbar
+          sx={{ display: "flex", justifyContent: "space-between", px: 3 }}
+        >
           {/* Left side - Mobile Menu Button + Logo */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             {/* Mobile Menu Button */}
@@ -400,9 +515,15 @@ const Layout = () => {
                     sx={{
                       width: 36,
                       height: 36,
-                      border: `2px solid ${alpha(theme.palette.common.white, 0.2)}`,
+                      border: `2px solid ${alpha(
+                        theme.palette.common.white,
+                        0.2,
+                      )}`,
                       "&:hover": {
-                        border: `2px solid ${alpha(theme.palette.common.white, 0.4)}`,
+                        border: `2px solid ${alpha(
+                          theme.palette.common.white,
+                          0.4,
+                        )}`,
                       },
                     }}
                   >
@@ -485,7 +606,14 @@ const Layout = () => {
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        <MenuItem onClick={handleLogout} sx={{ color: theme.palette.error.main }}>
+        <MenuItem onClick={handleChangePasswordOpen}>
+          <Lock fontSize="small" sx={{ mr: 2 }} />
+          Change Password
+        </MenuItem>
+        <MenuItem
+          onClick={handleLogout}
+          sx={{ color: theme.palette.error.main }}
+        >
           <Logout fontSize="small" sx={{ mr: 2 }} />
           Logout
         </MenuItem>
@@ -534,6 +662,64 @@ const Layout = () => {
           </Box>
         </MenuItem>
       </Menu>
+      {/* Change Password Dialog */}
+      <Dialog
+        open={changePasswordOpen}
+        onClose={handleChangePasswordClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent>
+          {passwordError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {passwordError}
+            </Alert>
+          )}
+          {passwordSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {passwordSuccess}
+            </Alert>
+          )}
+          <TextField
+            autoFocus
+            margin="dense"
+            name="currentPassword"
+            label="Current Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={passwordData.currentPassword}
+            onChange={handlePasswordChange}
+          />
+          <TextField
+            margin="dense"
+            name="newPassword"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={passwordData.newPassword}
+            onChange={handlePasswordChange}
+          />
+          <TextField
+            margin="dense"
+            name="confirmPassword"
+            label="Confirm New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={passwordData.confirmPassword}
+            onChange={handlePasswordChange}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleChangePasswordClose}>Cancel</Button>
+          <Button onClick={handlePasswordSubmit} variant="contained">
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
       {/* Main Content */}
       <Box
         component="main"
@@ -554,7 +740,7 @@ const Layout = () => {
         <Outlet />
       </Box>
     </Box>
-  )
+  );
 }
 
 export default Layout

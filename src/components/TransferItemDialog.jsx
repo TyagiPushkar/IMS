@@ -121,9 +121,12 @@ const TransferItemDialog = ({ open, onClose, refreshTransfer }) => {
 
       const result = await response.json()
       if (result.success) {
-        setOfficesList(result.data)
+        const activeOffices = result.data.filter(
+          (office) => office.Status === "1"
+        );
+        setOfficesList(activeOffices);
       } else {
-        setError(result.message || "Failed to load office data.")
+        setError(result.message || "Failed to load office data.");
       }
     } catch (err) {
       console.error("Failed to fetch offices:", err)

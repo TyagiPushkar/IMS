@@ -83,7 +83,10 @@ const IssueItemDialog = ({ open, onClose, refreshData }) => {
 
       const result = await response.json()
       if (result.success) {
-        setEmployees(result.data)
+const activeEmployees = result.data.filter(
+  (employee) => String(employee.Status) === "1"
+);
+setEmployees(activeEmployees);
       } else {
         setError(result.message || "Failed to fetch employees.")
       }
@@ -179,11 +182,14 @@ const IssueItemDialog = ({ open, onClose, refreshData }) => {
     }
 
     try {
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/issue/add_issue.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/issue/issue_item.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (response.status === 401) {
         localStorage.removeItem("user")

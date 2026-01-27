@@ -21,7 +21,8 @@ import {
   InputAdornment,
   Chip,
   Paper,
-} from "@mui/material"
+  Tooltip,
+} from "@mui/material";
 import {
   AddCircle as AddCircleIcon,
   RemoveCircle as RemoveCircleIcon,
@@ -34,7 +35,9 @@ import {
   Inventory as InventoryIcon,
   Numbers as NumbersIcon,
   Paid as PaidIcon,
-} from "@mui/icons-material"
+  Description as DescriptionIcon,
+  InfoOutlined as InfoIcon,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom"
 
 const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
@@ -45,10 +48,12 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
     VendorAddress: "",
     InvoiceNumber: "",
     Invoice: null,
+    PODate: new Date().toISOString().split("T")[0],
+    PO: null,
     Date: new Date().toISOString().split("T")[0],
     OfficeId: "",
     items: [{ Item: "", Quantity: "", Amount: "" }],
-  })
+  });
   const [itemsList, setItemsList] = useState([])
   const [vendorsList, setVendorsList] = useState([])
   const [loading, setLoading] = useState(false)
@@ -70,10 +75,12 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
         VendorAddress: "",
         InvoiceNumber: "",
         Invoice: null,
+        PODate: new Date().toISOString().split("T")[0],
+        PO: null,
         Date: new Date().toISOString().split("T")[0],
         OfficeId: user?.OfficeId || "",
         items: [{ Item: "", Quantity: "", Amount: "" }],
-      })
+      });
       setError("")
       setSuccess("")
       setFieldErrors({})
@@ -150,7 +157,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
       })
 
       const result = await response.json()
-      console.log("Vendors API response:", result) // Debug log
+      console.log("Vendors API response:", result);
 
       if (result.success) {
         if (!Array.isArray(result.data)) {
@@ -161,7 +168,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
           vendor && typeof vendor === 'object' && 'VendorName' in vendor
         )
         
-        console.log("Valid vendors:", validVendors) // Debug log
+        console.log("Valid vendors:", validVendors);
         setVendorsList(validVendors)
         
         if (validVendors.length !== result.data.length) {
@@ -179,39 +186,55 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
   }
 
   const validateField = (name, value) => {
-    if (!value) return "This field is required"
+    if (!value && name !== "Invoice") return "This field is required";
     return ""
   }
 
   const validateForm = () => {
-    const errors = {}
+    const errors = {};
 
-    const mainFields = ["VendorName", "VendorAddress", "InvoiceNumber"]
-    mainFields.forEach((field) => {
-      const error = validateField(field, form[field])
-      if (error) errors[field] = error
-    })
+    // Mandatory fields
+    const mandatoryFields = [
+      "VendorName",
+      "VendorAddress",
+      "PODate",
+      "InvoiceNumber",
+    ];
+    mandatoryFields.forEach((field) => {
+      const error = validateField(field, form[field]);
+      if (error) errors[field] = error;
+    });
 
-    if (!form.Invoice) {
-      errors.Invoice = "Invoice image is required"
+    // PO file is mandatory
+    if (!form.PO) {
+      errors.PO = "PO file is required";
     }
 
+    // Validate items
     form.items.forEach((item, index) => {
-      if (!item.Item) errors[`item-${index}-Item`] = "Item is required"
-      if (!item.Quantity) errors[`item-${index}-Quantity`] = "Quantity is required"
-      if (!item.Amount) errors[`item-${index}-Amount`] = "Amount is required"
-    })
+      if (!item.Item) errors[`item-${index}-Item`] = "Item is required";
+      if (!item.Quantity)
+        errors[`item-${index}-Quantity`] = "Quantity is required";
+      if (!item.Amount) errors[`item-${index}-Amount`] = "Amount is required";
+    });
 
-    setFieldErrors(errors)
-    return Object.keys(errors).length === 0
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   }
 
-  const handleFileChange = (e) => {
-    setForm({ ...form, Invoice: e.target.files[0] })
-    if (fieldErrors.Invoice) {
-      setFieldErrors({ ...fieldErrors, Invoice: "" })
+  const handlePOFileChange = (e) => {
+    setForm({ ...form, PO: e.target.files[0] });
+    if (fieldErrors.PO) {
+      setFieldErrors({ ...fieldErrors, PO: "" });
     }
-  }
+  };
+
+  const handleInvoiceFileChange = (e) => {
+    setForm({ ...form, Invoice: e.target.files[0] });
+    if (fieldErrors.Invoice) {
+      setFieldErrors({ ...fieldErrors, Invoice: "" });
+    }
+  };
 
   const handleVendorChange = (event, newValue) => {
     const selectedVendor = vendorsList.find(vendor => vendor.VendorName === newValue)
@@ -260,8 +283,10 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
       const formData = new FormData()
       formData.append("VendorName", form.VendorName)
       formData.append("VendorAddress", form.VendorAddress)
-      formData.append("InvoiceNumber", form.InvoiceNumber)
-      formData.append("Invoice", form.Invoice)
+      formData.append("InvoiceNumber", form.InvoiceNumber || "");
+      formData.append("PO_Date", form.PODate);
+      formData.append("PO", form.PO);
+      formData.append("Invoice", form.Invoice || "");
       formData.append("Date", form.Date)
       formData.append("OfficeId", form.OfficeId)
 
@@ -271,10 +296,13 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
         formData.append(`Amount[]`, item.Amount)
       })
 
-      const response = await fetch("https://namami-infotech.com/SatyaMicro/src/purchase/add_purchase.php", {
-        method: "POST",
-        body: formData,
-      })
+      const response = await fetch(
+        "https://namami-infotech.com/SatyaMicro/src/purchase/purchase_item.php",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       const result = await response.json()
       if (result.success) {
         setSuccess("Purchase recorded successfully!")
@@ -326,7 +354,11 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
             Record New Purchase
           </Typography>
         </Box>
-        <IconButton onClick={handleClose} disabled={loading} sx={{ color: "white" }}>
+        <IconButton
+          onClick={handleClose}
+          disabled={loading}
+          sx={{ color: "white" }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -352,7 +384,11 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
         <Grid container spacing={3}>
           {/* Vendor Information */}
           <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ fontWeight: 600 }}
+            >
               Vendor Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
@@ -361,7 +397,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
             <Autocomplete
               value={form.VendorName}
               onChange={handleVendorChange}
-              options={vendorsList.map(vendor => vendor.VendorName)}
+              options={vendorsList.map((vendor) => vendor.VendorName)}
               loading={vendorsLoading}
               renderInput={(params) => (
                 <TextField
@@ -379,7 +415,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
                     ),
                     endAdornment: (
                       <React.Fragment>
-                        {vendorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {vendorsLoading ? (
+                          <CircularProgress color="inherit" size={20} />
+                        ) : null}
                         {params.InputProps.endAdornment}
                       </React.Fragment>
                     ),
@@ -389,7 +427,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
               freeSolo={false}
               fullWidth
               disabled={loading || vendorsLoading}
-              getOptionLabel={(option) => option || ''}
+              getOptionLabel={(option) => option || ""}
               isOptionEqualToValue={(option, value) => option === value}
             />
           </Grid>
@@ -398,7 +436,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
               required
               label="Vendor Address"
               value={form.VendorAddress}
-              onChange={(e) => setForm({ ...form, VendorAddress: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, VendorAddress: e.target.value })
+              }
               fullWidth
               error={Boolean(fieldErrors.VendorAddress)}
               helperText={fieldErrors.VendorAddress}
@@ -412,11 +452,21 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
               disabled={loading}
             />
           </Grid>
-          {/* Invoice Information */}
+
+          {/* Invoice Information - Mandatory Invoice Number, Optional Invoice Upload */}
           <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
-              Invoice Information
-            </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography
+                variant="subtitle1"
+                gutterBottom
+                sx={{ fontWeight: 600 }}
+              >
+                Invoice Information
+              </Typography>
+              <Tooltip title="Invoice number is required, but invoice image upload is optional">
+                <InfoIcon fontSize="small" color="action" />
+              </Tooltip>
+            </Box>
             <Divider sx={{ mb: 2 }} />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -424,7 +474,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
               required
               label="Invoice Number"
               value={form.InvoiceNumber}
-              onChange={(e) => setForm({ ...form, InvoiceNumber: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, InvoiceNumber: e.target.value })
+              }
               fullWidth
               error={Boolean(fieldErrors.InvoiceNumber)}
               helperText={fieldErrors.InvoiceNumber}
@@ -436,12 +488,149 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
                 ),
               }}
               disabled={loading}
+              placeholder="Enter invoice number"
             />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                border: "1px dashed rgba(0, 0, 0, 0.12)",
+                borderRadius: 1,
+                p: 2,
+                textAlign: "center",
+                backgroundColor: "rgba(0, 0, 0, 0.02)",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleInvoiceFileChange}
+                id="invoice-upload"
+                style={{ display: "none" }}
+                disabled={loading}
+              />
+              <label htmlFor="invoice-upload">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<AttachFileIcon />}
+                  disabled={loading}
+                >
+                  Upload Invoice Image (Optional)
+                </Button>
+              </label>
+              {form.Invoice && (
+                <Chip
+                  label={form.Invoice.name}
+                  onDelete={() => setForm({ ...form, Invoice: null })}
+                  sx={{ mt: 1 }}
+                  color="success"
+                  variant="outlined"
+                />
+              )}
+              {!form.Invoice && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={{ mt: 1 }}
+                >
+                  Invoice image upload is optional
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          {/* PO Information - Mandatory */}
+          <Grid item xs={12}>
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ fontWeight: 600 }}
+            >
+              Purchase Order (PO) Information
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               required
-              label="Date"
+              label="PO Date"
+              type="date"
+              value={form.PODate}
+              onChange={(e) => setForm({ ...form, PODate: e.target.value })}
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+              error={Boolean(fieldErrors.PODate)}
+              helperText={fieldErrors.PODate}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <DateIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+              disabled={loading}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                border: fieldErrors.PO
+                  ? "1px solid red"
+                  : "1px dashed rgba(0, 0, 0, 0.12)",
+                borderRadius: 1,
+                p: 2,
+                textAlign: "center",
+                backgroundColor: "rgba(0, 0, 0, 0.02)",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePOFileChange}
+                id="po-upload"
+                style={{ display: "none" }}
+                disabled={loading}
+              />
+              <label htmlFor="po-upload">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<DescriptionIcon />}
+                  disabled={loading}
+                  color={fieldErrors.PO ? "error" : "primary"}
+                >
+                  Upload PO Image (Required)
+                </Button>
+              </label>
+              {form.PO && (
+                <Chip
+                  label={form.PO.name}
+                  onDelete={() => setForm({ ...form, PO: null })}
+                  sx={{ mt: 1 }}
+                  color="primary"
+                />
+              )}
+              {fieldErrors.PO && (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  display="block"
+                  sx={{ mt: 1 }}
+                >
+                  {fieldErrors.PO}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          {/* Date Field */}
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Record Date"
               type="date"
               value={form.Date}
               onChange={(e) => setForm({ ...form, Date: e.target.value })}
@@ -459,42 +648,14 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12}>
-            <Box
-              sx={{
-                border: fieldErrors.Invoice ? "1px solid red" : "1px dashed rgba(0, 0, 0, 0.12)",
-                borderRadius: 1,
-                p: 2,
-                textAlign: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.02)",
-              }}
-            >
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                id="invoice-upload"
-                style={{ display: "none" }}
-                disabled={loading}
-              />
-              <label htmlFor="invoice-upload">
-                <Button variant="outlined" component="span" startIcon={<AttachFileIcon />} disabled={loading}>
-                  Upload Invoice Image
-                </Button>
-              </label>
-              {form.Invoice && (
-                <Chip label={form.Invoice.name} onDelete={() => setForm({ ...form, Invoice: null })} sx={{ mt: 1 }} />
-              )}
-              {fieldErrors.Invoice && (
-                <Typography variant="caption" color="error" display="block">
-                  {fieldErrors.Invoice}
-                </Typography>
-              )}
-            </Box>
-          </Grid>
+
           {/* Purchase Items */}
           <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ fontWeight: 600 }}
+            >
               Purchase Items
             </Typography>
             <Divider sx={{ mb: 2 }} />
@@ -502,12 +663,21 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
           {form.items.map((item, index) => (
             <React.Fragment key={index}>
               <Grid item xs={12}>
-                <Paper elevation={0} sx={{ p: 2, border: "1px solid rgba(0, 0, 0, 0.12)", borderRadius: 1 }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    border: "1px solid rgba(0, 0, 0, 0.12)",
+                    borderRadius: 1,
+                  }}
+                >
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={5}>
                       <Autocomplete
                         value={item.Item}
-                        onChange={(e, newValue) => handleItemChange(index, "Item", newValue)}
+                        onChange={(e, newValue) =>
+                          handleItemChange(index, "Item", newValue)
+                        }
                         options={itemsList.map((item) => item.Name)}
                         renderInput={(params) => (
                           <TextField
@@ -536,7 +706,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
                         label="Quantity"
                         type="number"
                         value={item.Quantity}
-                        onChange={(e) => handleItemChange(index, "Quantity", e.target.value)}
+                        onChange={(e) =>
+                          handleItemChange(index, "Quantity", e.target.value)
+                        }
                         fullWidth
                         required
                         error={Boolean(fieldErrors[`item-${index}-Quantity`])}
@@ -556,7 +728,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
                         label="Amount"
                         type="number"
                         value={item.Amount}
-                        onChange={(e) => handleItemChange(index, "Amount", e.target.value)}
+                        onChange={(e) =>
+                          handleItemChange(index, "Amount", e.target.value)
+                        }
                         fullWidth
                         required
                         error={Boolean(fieldErrors[`item-${index}-Amount`])}
@@ -573,7 +747,11 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
                     </Grid>
                     <Grid item xs={12} md={1} sx={{ textAlign: "center" }}>
                       {form.items.length > 1 && (
-                        <IconButton onClick={() => removeItemRow(index)} color="error" disabled={loading}>
+                        <IconButton
+                          onClick={() => removeItemRow(index)}
+                          color="error"
+                          disabled={loading}
+                        >
                           <RemoveCircleIcon />
                         </IconButton>
                       )}
@@ -602,7 +780,9 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
         </Button>
         <Button
           onClick={handleSave}
-          disabled={loading || Object.keys(fieldErrors).some((key) => fieldErrors[key])}
+          disabled={
+            loading || Object.keys(fieldErrors).some((key) => fieldErrors[key])
+          }
           variant="contained"
           size="large"
           startIcon={loading ? <CircularProgress size={20} /> : null}
@@ -618,7 +798,7 @@ const PurchaseItemDialog = ({ open, onClose, refreshPurchases }) => {
         </Button>
       </DialogActions>
     </Dialog>
-  )
+  );
 }
 
 export default PurchaseItemDialog
